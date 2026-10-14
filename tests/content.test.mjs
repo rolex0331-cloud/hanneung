@@ -19,8 +19,8 @@ test('문항 형식: 선택지 5개, 정답 범위, 해설, 시대 코드', () =
 test('ID·문제 중복 없음, 시대별 10문항 이상', () => {
   assert.equal(new Set(QUESTIONS.map((q) => q.id)).size, QUESTIONS.length);
   assert.equal(new Set(QUESTIONS.map((q) => q.q)).size, QUESTIONS.length);
-  for (const e of ERAS) assert.ok(QUESTIONS.filter((q) => q.era === e.id).length >= 10, e.id);
-  assert.ok(QUESTIONS.length >= 100);
+  for (const e of ERAS) assert.ok(QUESTIONS.filter((q) => q.era === e.id).length >= 30, e.id);
+  assert.ok(QUESTIONS.length >= 300);
 });
 
 test('해설에 정답의 핵심어가 들어 있다 (해설·정답 불일치 실수 탐지)', () => {
@@ -28,6 +28,7 @@ test('해설에 정답의 핵심어가 들어 있다 (해설·정답 불일치 �
   const miss = [];
   for (const q of QUESTIONS.filter((x) => !x.o[x.a].includes('→'))) {
     const words = q.o[q.a].replace(/[().,·"~]/g, ' ').split(/\s+/).map(strip).filter((w) => w.length >= 2);
+    if (!words.length) words.push(q.o[q.a]); // '소', '잡과'처럼 짧은 정답은 그대로 찾는다
     if (!words.some((w) => q.e.includes(w))) miss.push(q.id);
   }
   assert.deepEqual(miss, [], `해설에 정답 근거가 없는 문항: ${miss.join(', ')}`);

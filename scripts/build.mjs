@@ -4,6 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { QUESTIONS, ERAS } from '../assets/questions.js';
 import { EXAMS, SITE } from '../assets/config.js';
+import { presentQuestion, rng, hashSeed } from '../assets/engine.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'dist');
@@ -86,7 +87,8 @@ const eraNav = (cur) => `<p class="hint">${ERAS.map((e) => (e.id === cur ? `<b>$
 for (const er of ERAS) {
   const qs = QUESTIONS.filter((q) => q.era === er.id);
   const items = qs
-    .map((q, i) => `<li class="card"><p class="rv-q">${i + 1}. ${esc(q.q)}</p><ol>${q.o.map((o) => `<li>${esc(o)}</li>`).join('')}</ol><details><summary>정답과 해설</summary><p class="rv-a">정답: ${'①②③④⑤'[q.a]} ${esc(q.o[q.a])}</p><p class="rv-e">${esc(q.e)}</p></details></li>`)
+    .map((q) => presentQuestion(q, rng(hashSeed(`static:${q.id}`))))
+    .map((q, i) => `<li class="card"><p class="rv-q">${i + 1}. ${esc(q.q)}</p><ol>${q.options.map((o) => `<li>${esc(o)}</li>`).join('')}</ol><details><summary>정답과 해설</summary><p class="rv-a">정답: ${'①②③④⑤'[q.answer]} ${esc(q.options[q.answer])}</p><p class="rv-e">${esc(q.e)}</p></details></li>`)
     .join('');
   const body = `<h1>${er.name} 한능검 문제와 해설</h1>
 <p class="lead">${ERA_INTRO[er.id]}</p>
