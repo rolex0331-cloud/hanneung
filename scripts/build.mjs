@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { QUESTIONS, ERAS } from '../assets/questions.js';
 import { EXAMS, SITE, ADS } from '../assets/config.js';
 import { presentQuestion, rng, hashSeed } from '../assets/engine.js';
+import { SUMMARY } from './summary-data.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'dist');
@@ -23,11 +24,11 @@ const LOGO = readFileSync(join(root, 'assets', 'logo-inline.svg'), 'utf8').trim(
 
 const HEADER = `<header class="site-header"><div class="wrap header-in">
   <a class="logo" href="/" aria-label="한능 홈">${LOGO}</a>
-  <nav class="nav" aria-label="주요 메뉴"><a href="/#/daily">오늘의 문제</a><a href="/#/mock">모의고사</a><a href="/schedule/">시험 일정</a></nav>
+  <nav class="nav" aria-label="주요 메뉴"><a href="/#/daily">오늘의 문제</a><a href="/#/mock">모의고사</a><a href="/summary/">핵심 정리</a><a href="/schedule/">시험 일정</a></nav>
 </div></header>`;
 const FOOTER = `<footer class="site-footer"><div class="wrap">
   <p>한능의 모든 문항은 직접 제작했으며 국사편찬위원회 기출문제를 옮기지 않았습니다. 공식 기출문제는 <a href="${SITE.officialExam}" target="_blank" rel="noopener">한국사능력검정시험 홈페이지</a>에서 볼 수 있어요.</p>
-  <p class="foot-links"><a href="/era/pre/">시대별 문제</a><a href="/schedule/">시험 일정·개편</a><a href="/about/">소개·개인정보</a><a href="${SITE.contact}" target="_blank" rel="noopener">오류 제보</a></p>
+  <p class="foot-links"><a href="/summary/">핵심 정리</a><a href="/era/pre/">시대별 문제</a><a href="/schedule/">시험 일정·개편</a><a href="/about/">소개·개인정보</a><a href="${SITE.contact}" target="_blank" rel="noopener">오류 제보</a></p>
 </div></footer>`;
 
 // 시대 소개 (자체 작성)
@@ -135,6 +136,30 @@ write(
   })
 );
 
+// 시험 직전 핵심 정리
+{
+  const toc = SUMMARY.map((s) => `<a href="#${s.era}">${s.title}</a>`).join(' · ');
+  const secs = SUMMARY.map(
+    (s) => `<h2 id="${s.era}">${s.title}</h2>
+<div class="card" style="padding:4px 16px"><table><tbody>${s.rows.map(([k, v]) => `<tr><th scope="row" style="white-space:nowrap">${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</tbody></table></div>
+<p class="hint"><a href="/era/${s.era}/">${s.title} 문제와 해설 보기 →</a> · <a href="/#/era/${s.era}">바로 풀기</a></p>`
+  ).join('\n');
+  write(
+    'summary/index.html',
+    page({
+      title: '한능검 시험 직전 핵심 정리 — 시대별 빈출 키워드 한 장 요약 | 한능',
+      desc: '한국사능력검정시험 심화 시험 직전에 보는 시대별 핵심 정리. 왕별 업적 순서, 헷갈리는 제도 비교, 사건 연표를 표로 정리했습니다.',
+      path: '/summary/',
+      body: `<h1>한능검 시험 직전 핵심 정리</h1>
+<p class="lead">시험장 가기 전에 한 번 훑어보는 시대별 빈출 키워드입니다. 왕별 업적과 사건은 일어난 순서(→)대로 적었어요. 정리를 본 뒤에는 시대별 문제로 바로 확인해 보세요.</p>
+<p class="hint">${toc}</p>
+${secs}
+<p class="cta"><a class="btn primary lg" href="/#/daily">오늘의 10문제로 확인</a><a class="btn lg" href="/#/mock">실전 모의고사 50문항</a></p>
+<p class="src">한능이 직접 정리한 요약입니다. 연도와 세부 사항은 교과서나 공식 자료로 한 번 더 확인하세요. 오류는 <a href="${SITE.contact}" target="_blank" rel="noopener">제보 게시판</a>으로 알려 주세요.</p>`,
+    })
+  );
+}
+
 // 소개·개인정보
 write(
   'about/index.html',
@@ -168,7 +193,7 @@ write(
   page({ title: '페이지를 찾을 수 없어요 | 한능', desc: '요청한 페이지가 없습니다.', path: '/404', noindex: true, body: `<h1>페이지를 찾을 수 없어요</h1><p class="lead">주소가 바뀌었거나 없는 페이지입니다.</p><p class="cta"><a class="btn primary lg" href="/#/daily">오늘의 10문제 풀기</a><a class="btn lg" href="/">처음으로</a></p>` })
 );
 
-const urls = ['/', '/schedule/', '/about/', ...ERAS.map((e) => `/era/${e.id}/`)];
+const urls = ['/', '/summary/', '/schedule/', '/about/', ...ERAS.map((e) => `/era/${e.id}/`)];
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${BASE}${u}</loc><lastmod>${BUILT}</lastmod></url>`).join('\n')}\n</urlset>\n`);
 if (PUB) write('ads.txt', `google.com, ${PUB}, DIRECT, f08c47fec0942fa0
 `);
