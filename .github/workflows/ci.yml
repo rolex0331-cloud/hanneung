@@ -1,0 +1,52 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 0 * * 1' # 매주 월요일 09:00 KST 운영 사이트 점검
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  test:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: 브라우저 E2E (로컬 빌드)
+        run: npm run test:e2e
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+  live-check:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 운영 사이트 E2E
+        id: e2e
+        continue-on-error: true
+        run: npm run test:e2e
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          BASE_URL: https://hanneung.com
+      - name: 실패 시 이슈 생성
+        if: steps.e2e.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "운영 사이트 점검 실패 $(date -u +%F)" --body "주간 E2E 점검 실패. 로그 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

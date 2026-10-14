@@ -1,0 +1,9 @@
+node_modules/
+dist/
+tools/fonts-src/
+.env*
+.wrangler/
+
+.dev.vars*
+!.dev.vars.example
+!.env.example

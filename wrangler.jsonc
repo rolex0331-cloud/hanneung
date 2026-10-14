@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // 정적 파일만 제공하는 Worker. 스크립트(main)가 없으므로 모든 요청이 정적 자산 요청이다.
+  // Cloudflare 문서: "Requests to static assets are free and unlimited." (2026-10-14 확인)
+  "name": "hanneung",
+  "compatibility_date": "2026-10-12",
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "dist",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  },
+  "routes": [
+    { "pattern": "hanneung.com", "custom_domain": true },
+    { "pattern": "www.hanneung.com", "custom_domain": true }
+  ]
+}

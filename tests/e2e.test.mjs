@@ -1,0 +1,152 @@
+// 브라우저 E2E: 로컬 dist 서버(기본) 또는 BASE_URL(운영)
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import puppeteer from 'puppeteer-core';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const exe = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe', '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean).find((p) => existsSync(p));
+let browser, server, BASE = process.env.BASE_URL;
+
+before(async () => {
+  if (!BASE) {
+    execFileSync(process.execPath, [join(root, 'scripts', 'build.mjs')]);
+    const { startServer } = await import('../scripts/serve.mjs');
+    server = await startServer(0);
+    BASE = `http://127.0.0.1:${server.address().port}`;
+  }
+  BASE = BASE.replace(/\/$/, '');
+  browser = await puppeteer.launch({ executablePath: exe, headless: true, args: ['--no-sandbox'] });
+});
+after(async () => {
+  await browser?.close();
+  server?.close();
+});
+
+async function open(path, { mobile = false, before: pre } = {}) {
+  const page = await browser.newPage();
+  await page.setViewport(mobile ? { width: 390, height: 844, isMobile: true, hasTouch: true } : { width: 1280, height: 900 });
+  const errors = [];
+  const external = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  page.on('console', (m) => m.type() === 'error' && !/favicon/.test(m.text()) && errors.push(m.text()));
+  page.on('request', (r) => { const u = r.url(); if (!u.startsWith(BASE) && !u.startsWith('data:') && !u.startsWith('https://static.cloudflareinsights.com/') && !u.startsWith(BASE.replace('://', '://www.'))) external.push(u); });
+  if (pre) await page.evaluateOnNewDocument(pre);
+  const res = await page.goto(BASE + path, { waitUntil: 'networkidle0' });
+  return { page, errors, external, res };
+}
+const txt = (p, sel) => p.$eval(sel, (e) => e.textContent);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+test('홈: 오류·외부 요청 없음, 시대 9개, 시작 버튼', async () => {
+  const { page, errors, external } = await open('/');
+  assert.equal((await page.$$('#era-list .era')).length, 9);
+  assert.match(await txt(page, '#cta-daily'), /오늘의 10문제/);
+  assert.deepEqual(errors, []);
+  assert.deepEqual(external, []);
+  await page.close();
+});
+
+test('오늘의 10문제: 답하면 정오·해설 표시, 다음은 답한 뒤에만, 끝나면 결과·오답노트', async () => {
+  const { page, errors } = await open('/#/daily');
+  assert.match(await txt(page, '#quiz-count'), /1 \/ 10/);
+  assert.equal(await page.$eval('#q-next', (b) => b.disabled), true, '답하기 전 다음 비활성');
+  let wrongs = 0;
+  for (let i = 0; i < 10; i++) {
+    // 첫 문제는 일부러 틀리게: 정답이 아닌 선택지를 누른다
+    const pickIdx = await page.$$eval('#q-opts .opt', (bs) => bs.length);
+    await page.click(`#q-opts .opt[data-i="${i === 0 ? 0 : 0}"]`);
+    await sleep(60);
+    const v = await txt(page, '#q-verdict');
+    assert.match(v, /정답이에요|오답/);
+    assert.ok((await txt(page, '#q-exp')).length > 10);
+    assert.equal(pickIdx, 5);
+    if (/오답/.test(v)) wrongs++;
+    assert.equal(await page.$eval('#q-next', (b) => b.disabled), false);
+    await page.click('#q-next');
+    await sleep(80);
+  }
+  assert.match(page.url(), /#\/result/);
+  assert.match(await txt(page, '#r-score'), /\/ 10 정답/);
+  assert.equal((await page.$$('#r-review li')).length, 10);
+  await page.goto(BASE + '/#/wrong', { waitUntil: 'networkidle0' });
+  await sleep(100);
+  assert.equal((await page.$$('#wrong-list li')).length, wrongs, '틀린 수만큼 오답노트');
+  await page.goto(BASE + '/', { waitUntil: 'networkidle0' });
+  assert.match(await txt(page, '#stat-streak'), /1일/);
+  assert.match(await txt(page, '#stat-solved'), /10/);
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test('키보드 1~5와 Enter로 풀 수 있다', async () => {
+  const { page } = await open('/#/era/goryeo');
+  await page.keyboard.press('3');
+  await sleep(50);
+  assert.equal(await page.$eval('#q-feedback', (e) => e.hidden), false);
+  await page.keyboard.press('Enter');
+  await sleep(50);
+  assert.match(await txt(page, '#quiz-count'), /^2 \//);
+  assert.match(await txt(page, '#q-era'), /고려/);
+  await page.close();
+});
+
+test('실전 모의고사: 50문항, 타이머, 답 바꾸기 가능, 제출 시 점수·급수', async () => {
+  const { page } = await open('/#/mock');
+  assert.match(await txt(page, '#quiz-count'), /1 \/ 50/);
+  assert.equal(await page.$eval('#quiz-timer', (e) => e.hidden), false);
+  assert.match(await txt(page, '#quiz-timer'), /남은 시간 (80|79):/);
+  // 모의고사는 즉시 채점하지 않는다
+  await page.click('#q-opts .opt[data-i="0"]');
+  assert.equal(await page.$eval('#q-feedback', (e) => e.hidden), true);
+  await page.click('#q-opts .opt[data-i="1"]');
+  assert.equal(await page.$eval('#q-opts .opt[data-i="1"]', (b) => b.classList.contains('picked')), true);
+  // 나머지는 답하지 않고 끝까지 넘겨 제출 → 미응답 49개로 채점
+  for (let i = 0; i < 50; i++) {
+    const ans = await page.evaluate(() => {
+      const q = document.getElementById('q-text').textContent;
+      return q;
+    });
+    assert.ok(ans.length > 5);
+    await page.click('#q-next');
+    await sleep(30);
+  }
+  assert.match(page.url(), /#\/result/);
+  assert.match(await txt(page, '#r-note'), /안 푼 문항 49개/);
+  assert.match(await txt(page, '#r-grade'), /3급\(60점\) 기준 미달|급 수준/);
+  await page.close();
+});
+
+test('localStorage가 막혀도 동작', async () => {
+  const { page, errors } = await open('/#/daily', { before: () => Object.defineProperty(window, 'localStorage', { get() { throw new Error('blocked'); } }) });
+  await page.click('#q-opts .opt[data-i="0"]');
+  await sleep(50);
+  assert.equal(await page.$eval('#q-feedback', (e) => e.hidden), false);
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test('모바일 390px: 가로 넘침 없음 (홈·퀴즈·시대 페이지·일정)', async () => {
+  for (const p of ['/', '/#/daily', '/era/joseon2/', '/schedule/', '/about/']) {
+    const { page } = await open(p, { mobile: true });
+    const o = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert.ok(o <= 0, `${p} ${o}px`);
+    await page.close();
+  }
+});
+
+test('정적 페이지와 404', async () => {
+  for (const p of ['/era/pre/', '/era/contemp/', '/schedule/', '/about/']) {
+    const { page, res } = await open(p);
+    assert.equal(res.status(), 200, p);
+    assert.ok((await txt(page, 'h1')).length >= 4);
+    await page.close();
+  }
+  const { page, res } = await open('/no-such-page/');
+  assert.equal(res.status(), 404);
+  assert.match(await txt(page, 'h1'), /찾을 수 없어요/);
+  await page.close();
+});
