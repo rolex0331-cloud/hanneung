@@ -33,7 +33,7 @@ async function open(path, { mobile = false, before: pre } = {}) {
   const external = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => m.type() === 'error' && !/favicon/.test(m.text()) && errors.push(m.text()));
-  page.on('request', (r) => { const u = r.url(); if (!u.startsWith(BASE) && !u.startsWith('data:') && !u.startsWith('https://static.cloudflareinsights.com/') && !u.startsWith(BASE.replace('://', '://www.'))) external.push(u); });
+  page.on('request', (r) => { const u = r.url(); if (!u.startsWith(BASE) && !u.startsWith('data:') && !u.startsWith('https://static.cloudflareinsights.com/') && !/^https:\/\/([a-z0-9-]+\.)*(googlesyndication|doubleclick|google|googleadservices|gstatic|adtrafficquality)\.(com|net|google)\//.test(u) && !u.startsWith(BASE.replace('://', '://www.'))) external.push(u); });
   if (pre) await page.evaluateOnNewDocument(pre);
   const res = await page.goto(BASE + path, { waitUntil: 'networkidle0' });
   return { page, errors, external, res };

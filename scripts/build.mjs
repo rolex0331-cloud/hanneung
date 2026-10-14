@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, cpSync, rmSync, readdirSync } f
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { QUESTIONS, ERAS } from '../assets/questions.js';
-import { EXAMS, SITE } from '../assets/config.js';
+import { EXAMS, SITE, ADS } from '../assets/config.js';
 import { presentQuestion, rng, hashSeed } from '../assets/engine.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -12,6 +12,13 @@ const BASE = 'https://hanneung.com';
 const BUILT = process.env.BUILD_DATE || new Date().toISOString().slice(0, 10);
 const BUILD_ID = process.env.BUILD_ID || Date.now().toString(36);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+// 애드센스: 게시자 ID가 있을 때만 모든 페이지 head에 확인 메타와 광고 스크립트, ads.txt를 넣는다.
+const PUB = ADS.client.replace(/^ca-/, '');
+const ADS_HEAD = ADS.client
+  ? `
+<meta name="google-adsense-account" content="${ADS.client}">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADS.client}" crossorigin="anonymous" data-ads="1"></script>`
+  : '';
 const LOGO = readFileSync(join(root, 'assets', 'logo-inline.svg'), 'utf8').trim();
 
 const HEADER = `<header class="site-header"><div class="wrap header-in">
@@ -51,7 +58,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <meta property="og:url" content="${BASE}${path}">
 <meta property="og:image" content="${BASE}/assets/og.png">
 <meta name="theme-color" content="#F7F3EA">
-<meta name="build" content="${BUILD_ID}">
+<meta name="build" content="${BUILD_ID}">${ADS_HEAD}
 <link rel="icon" href="/assets/symbol.svg" type="image/svg+xml">
 <link rel="preload" href="/assets/fonts/pretendard-subset.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/style.css">
@@ -79,7 +86,7 @@ cpSync(join(root, 'assets'), join(out, 'assets'), { recursive: true });
 
 // 앱
 write('index.html', readFileSync(join(root, 'scripts', 'index.template.html'), 'utf8').replace('{{HEADER}}', HEADER).replace('{{FOOTER}}', FOOTER).replace('<meta name="theme-color" content="#F7F3EA">', `<meta name="theme-color" content="#F7F3EA">
-<meta name="build" content="${BUILD_ID}">`));
+<meta name="build" content="${BUILD_ID}">${ADS_HEAD}`));
 write('build.txt', `${BUILD_ID}\n`);
 
 // 시대별 페이지
@@ -147,9 +154,9 @@ write(
 <h2 id="privacy">개인정보 안내</h2>
 <ul>
 <li>회원가입이 없습니다. 푼 문제, 오답노트, 연속 학습일은 이 브라우저의 로컬 저장소(localStorage)에만 저장되며 서버로 보내지 않습니다. 브라우저의 사이트 데이터를 지우면 함께 지워집니다.</li>
-<li>사이트는 Cloudflare Pages에서 제공되며, Cloudflare는 보안과 운영을 위해 접속 기록을 처리할 수 있습니다.</li>
+<li>사이트는 Cloudflare에서 제공되며, Cloudflare는 보안과 운영을 위해 접속 기록을 처리할 수 있습니다.</li>
 <li>방문 통계로 Cloudflare Web Analytics를 사용합니다. 쿠키를 쓰지 않고 페이지 조회 수, 유입 경로, 기기 종류 같은 집계 정보만 수집하며, 푼 문제나 답안은 보내지 않습니다.</li>
-<li>광고를 사용하게 되면 이 안내를 먼저 갱신합니다. 현재는 광고를 게재하지 않습니다.</li>
+${ADS.client ? `<li>광고는 Google 애드센스로 게재합니다. Google을 비롯한 제3자 광고 사업자는 쿠키를 사용해 이 사이트와 다른 사이트 방문 기록을 바탕으로 광고를 보여 줄 수 있습니다. 맞춤 광고는 <a href="https://adssettings.google.com/" target="_blank" rel="noopener">Google 광고 설정</a>에서 끌 수 있으며, 자세한 내용은 <a href="https://policies.google.com/technologies/ads?hl=ko" target="_blank" rel="noopener">Google 광고 정책</a>에서 볼 수 있습니다. 푼 문제나 답안은 광고 사업자에게 보내지 않습니다.</li>` : '<li>광고를 사용하게 되면 이 안내를 먼저 갱신합니다. 현재는 광고를 게재하지 않습니다.</li>'}
 </ul>
 <h2>광고 고지</h2>
 <p>한능은 무료로 운영하기 위해 앞으로 광고를 게재할 수 있습니다. 광고는 문제 화면을 가리지 않는 위치에만 두고, 광고 영역에는 "광고"라고 표시합니다.</p>`,
@@ -163,6 +170,8 @@ write(
 
 const urls = ['/', '/schedule/', '/about/', ...ERAS.map((e) => `/era/${e.id}/`)];
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${BASE}${u}</loc><lastmod>${BUILT}</lastmod></url>`).join('\n')}\n</urlset>\n`);
+if (PUB) write('ads.txt', `google.com, ${PUB}, DIRECT, f08c47fec0942fa0
+`);
 write('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${BASE}/sitemap.xml\n`);
 write(
   '_headers',
