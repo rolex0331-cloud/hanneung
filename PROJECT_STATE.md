@@ -21,11 +21,11 @@
 | 테스트 | 단위·문항·사이트 14개 + 브라우저 E2E 7개 (로컬·운영 주소 모두 통과) |
 | 측정 | Cloudflare Web Analytics가 자동 삽입되어 동작 중(쿠키 없음). 대시보드에서 확인 |
 | 광고 | 미연결 (애드센스 미신청) |
-| 검색 등록 | 미등록 (Search Console·네이버 서치어드바이저) |
+| 검색 등록 | 네이버 서치어드바이저 확인 태그 반영(2026-10-14), 소유확인·사이트맵 제출은 사용자. Search Console 미등록 |
 | 매출 | 없음 |
 
 ## 배포·운영
-- 배포: `npm run deploy` (빌드 → 테스트 → wrangler deploy). CI에서 자동 배포하려면 Cloudflare API 토큰을 GitHub Secrets에 넣어야 함(미설정)
+- 배포: `npm run deploy` (테스트 → 빌드 → wrangler deploy → 운영 사이트가 이번 빌드(meta build)와 같은지 확인). CI에서 자동 배포하려면 Cloudflare API 토큰을 GitHub Secrets에 넣어야 함(미설정)
 - 되돌리기: `npx wrangler rollback <version-id>` 또는 이전 커밋으로 `npm run deploy`
 - 주간 점검: GitHub Actions `ci` 워크플로가 매주 월 09:00 KST 운영 E2E, 실패 시 이슈 생성
 - 문구를 바꾸면 `python tools/subset-font.py`로 폰트 서브셋 재생성(원본은 tools/fonts-src, git 제외)

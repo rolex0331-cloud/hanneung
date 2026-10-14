@@ -9,6 +9,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'dist');
 const BASE = 'https://hanneung.com';
 const BUILT = process.env.BUILD_DATE || new Date().toISOString().slice(0, 10);
+const BUILD_ID = process.env.BUILD_ID || Date.now().toString(36);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const LOGO = readFileSync(join(root, 'assets', 'logo-inline.svg'), 'utf8').trim();
 
@@ -49,6 +50,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <meta property="og:url" content="${BASE}${path}">
 <meta property="og:image" content="${BASE}/assets/og.png">
 <meta name="theme-color" content="#F7F3EA">
+<meta name="build" content="${BUILD_ID}">
 <link rel="icon" href="/assets/symbol.svg" type="image/svg+xml">
 <link rel="preload" href="/assets/fonts/pretendard-subset.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/style.css">
@@ -75,7 +77,9 @@ mkdirSync(out, { recursive: true });
 cpSync(join(root, 'assets'), join(out, 'assets'), { recursive: true });
 
 // 앱
-write('index.html', readFileSync(join(root, 'scripts', 'index.template.html'), 'utf8').replace('{{HEADER}}', HEADER).replace('{{FOOTER}}', FOOTER));
+write('index.html', readFileSync(join(root, 'scripts', 'index.template.html'), 'utf8').replace('{{HEADER}}', HEADER).replace('{{FOOTER}}', FOOTER).replace('<meta name="theme-color" content="#F7F3EA">', `<meta name="theme-color" content="#F7F3EA">
+<meta name="build" content="${BUILD_ID}">`));
+write('build.txt', `${BUILD_ID}\n`);
 
 // 시대별 페이지
 const eraNav = (cur) => `<p class="hint">${ERAS.map((e) => (e.id === cur ? `<b>${e.name}</b>` : `<a href="/era/${e.id}/">${e.name}</a>`)).join(' · ')}</p>`;
