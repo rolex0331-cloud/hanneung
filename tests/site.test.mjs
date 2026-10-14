@@ -45,7 +45,8 @@ test('sitemap URL이 모두 실제 페이지', () => {
 test('비밀값 형태 문자열 없음, 앱 페이지는 외부 스크립트를 직접 불러오지 않음', () => {
   const pat = /(gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)/;
   for (const f of walk(dist).filter((x) => /\.(html|js|css|txt|xml|svg)$/.test(x))) assert.doesNotMatch(readFileSync(f, 'utf8'), pat, f);
-  assert.doesNotMatch(readFileSync(join(dist, 'index.html'), 'utf8'), /<script[^>]+src="https?:/);
+  // 외부 스크립트는 애드센스 공식 스크립트만 허용
+  assert.doesNotMatch(readFileSync(join(dist, 'index.html'), 'utf8').replace(/<script async src="https:\/\/pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=ca-pub-\d{16}" crossorigin="anonymous" data-ads="1"><\/script>/g, ''), /<script[^>]+src="https?:/);
 });
 
 test('시대별 페이지에 문항과 해설이 실제로 들어 있다', () => {

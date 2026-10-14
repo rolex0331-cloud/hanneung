@@ -13,7 +13,7 @@ export const EXAMS = [
 ];
 
 // 애드센스 승인 후 게시자 ID(ca-pub-…)를 넣으면 광고 영역이 켜진다. 비어 있으면 광고 요청 없음.
-export const ADS = { client: '', slots: { result: '', inline: '' } };
+export const ADS = { client: 'ca-pub-7795759079027323', slots: { result: '', inline: '' } };
 
 // Cloudflare Web Analytics 토큰(쿠키 없음). 비어 있으면 측정 요청 없음.
 export const ANALYTICS = { cfBeaconToken: '' };
