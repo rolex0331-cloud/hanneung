@@ -109,9 +109,11 @@ ${eraNav(er.id)}
 }
 
 // 일정·개편
+const md = (iso) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8))}`;
 const examRows = EXAMS.filter((e) => e.verified)
-  .map((e) => `<tr><td>제${e.round}회</td><td>${e.date}</td><td>${e.type}</td><td class="src">${esc(e.source)}</td></tr>`)
+  .map((e) => `<tr><td>제${e.round}회</td><td>${esc(e.apply || '')}</td><td><b>${md(e.date)}</b></td><td>${e.result ? md(e.result) : ''}</td><td>${e.type}</td></tr>`)
   .join('');
+const examSrc = [...new Set(EXAMS.filter((e) => e.verified).map((e) => e.source))].join(', ');
 write(
   'schedule/index.html',
   page({
@@ -121,7 +123,8 @@ write(
     body: `<h1>한능검 시험 일정과 2027 개편 정리</h1>
 <p class="lead">일정은 국사편찬위원회 공식 사이트에서 확인한 회차만 적습니다. 접수 기간과 다음 회차는 반드시 <a href="${SITE.officialExam}" target="_blank" rel="noopener">공식 사이트</a>에서 다시 확인하세요.</p>
 <h2>확인된 시험 일정</h2>
-<div class="card" style="padding:6px 16px"><table><thead><tr><th>회차</th><th>시험일</th><th>종류</th><th>확인 출처</th></tr></thead><tbody>${examRows}</tbody></table></div>
+<div class="card" style="padding:6px 16px"><table><thead><tr><th>회차</th><th>원서 접수</th><th>시험일</th><th>성적 발표</th><th>종류</th></tr></thead><tbody>${examRows}</tbody></table></div>
+<p class="src">확인 출처: ${esc(examSrc)}. 2026년 남은 회차는 심화만 시행합니다. 성적은 발표일에 공식 홈페이지에서 조회하고 인증서를 출력합니다.</p>
 <h2>급수 기준 (심화)</h2>
 <ul><li>1급: 80점 이상</li><li>2급: 70점 이상 80점 미만</li><li>3급: 60점 이상 70점 미만</li></ul>
 <p>심화 시험은 50문항, 100점 만점이며 문항마다 배점이 다릅니다. 기본 시험(4~6급)은 별도입니다.</p>

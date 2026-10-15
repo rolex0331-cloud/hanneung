@@ -88,7 +88,7 @@ function renderHome() {
   if (next) {
     const d = daysUntil(next.date, t);
     $('exam-dday').textContent = d === 0 ? 'D-DAY' : `D-${d}`;
-    $('exam-info').innerHTML = `제${next.round}회 (${next.type}) ${Number(next.date.slice(5, 7))}월 ${Number(next.date.slice(8))}일`;
+    $('exam-info').innerHTML = `제${next.round}회 (${next.type}) ${Number(next.date.slice(5, 7))}월 ${Number(next.date.slice(8))}일${next.result ? ` · 발표 ${Number(next.result.slice(5, 7))}/${Number(next.result.slice(8))}` : ''}`;
   } else {
     $('exam-dday').textContent = '공고 확인';
     $('exam-info').innerHTML = `<a href="${SITE.officialExam}" target="_blank" rel="noopener">공식 일정 보기 ↗</a>`;

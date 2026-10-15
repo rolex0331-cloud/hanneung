@@ -9,7 +9,8 @@ export const SITE = {
 
 // 시험 일정: 공식 사이트에서 직접 확인한 값만 넣는다. verified=false 항목은 화면에 표시하지 않는다.
 export const EXAMS = [
-  { round: 80, date: '2026-10-17', type: '심화', verified: true, source: 'historyexam.go.kr 메인 공지 (2026-10-14 확인)' },
+  { round: 80, date: '2026-10-17', type: '심화', apply: '9/15 ~ 9/22 (마감)', result: '2026-10-30', verified: true, source: 'historyexam.go.kr 시험 일정 (2026-10-15 확인)' },
+  { round: 81, date: '2026-11-28', type: '심화', apply: '11/3(화) 10:00 ~ 11/10(화) 17:00', result: '2026-12-11', verified: true, source: 'historyexam.go.kr 시험 일정 (2026-10-15 확인)' },
 ];
 
 // 애드센스 승인 후 게시자 ID(ca-pub-…)를 넣으면 광고 영역이 켜진다. 비어 있으면 광고 요청 없음.
