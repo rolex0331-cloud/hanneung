@@ -44,7 +44,7 @@ const ERA_INTRO = {
   contemp: '광복 이후 정부 수립 과정, 6·25 전쟁, 4·19 혁명부터 6월 민주 항쟁까지의 민주화 운동, 정부별 경제·통일 정책을 구별하는 문제가 많습니다.',
 };
 
-function page({ title, desc, path, body, noindex = false }) {
+function page({ title, desc, path, body, noindex = false, remind = false }) {
   return `<!doctype html>
 <html lang="ko">
 <head>
@@ -68,8 +68,10 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 ${HEADER}
 <main class="wrap doc">
 ${body}
+${remind ? '<div data-remind></div>' : ''}
 </main>
 ${FOOTER}
+${remind ? '<script type="module" src="/assets/remind.js"></script>' : ''}
 </body>
 </html>
 `;
@@ -86,8 +88,11 @@ mkdirSync(out, { recursive: true });
 cpSync(join(root, 'assets'), join(out, 'assets'), { recursive: true });
 
 // 앱
-write('index.html', readFileSync(join(root, 'scripts', 'index.template.html'), 'utf8').replace('{{HEADER}}', HEADER).replace('{{FOOTER}}', FOOTER).replace('<meta name="theme-color" content="#F7F3EA">', `<meta name="theme-color" content="#F7F3EA">
-<meta name="build" content="${BUILD_ID}">${ADS_HEAD}`));
+const APP = readFileSync(join(root, 'scripts', 'index.template.html'), 'utf8').replace('{{HEADER}}', HEADER).replace('{{FOOTER}}', FOOTER).replace('<meta name="theme-color" content="#F7F3EA">', `<meta name="theme-color" content="#F7F3EA">
+<meta name="build" content="${BUILD_ID}">${ADS_HEAD}`);
+write('index.html', APP);
+// 알림 재방문 입구: 같은 앱을 /today/ 에서 열면 바로 오늘의 문제. 이 경로의 조회 수 = 알림으로 돌아온 방문
+write('today/index.html', APP.replace('<link rel="canonical" href="https://hanneung.com/">', '<link rel="canonical" href="https://hanneung.com/">\n<meta name="robots" content="noindex">'));
 write('build.txt', `${BUILD_ID}\n`);
 
 // 시대별 페이지
@@ -105,7 +110,7 @@ ${eraNav(er.id)}
 <h2>${er.name} 연습 문제 ${qs.length}개</h2>
 <ol class="qlist">${items}</ol>
 <p class="src">이 페이지의 문항은 한능이 직접 만든 연습 문제입니다. 실제 기출문제는 국사편찬위원회 홈페이지에서 확인하세요.</p>`;
-  write(`era/${er.id}/index.html`, page({ title: `${er.name} 한능검 문제 ${qs.length}개와 해설 | 한능`, desc: `한국사능력검정시험 심화 대비 ${er.name} 연습 문제 ${qs.length}개와 해설. ${ERA_INTRO[er.id].slice(0, 70)}…`, path: `/era/${er.id}/`, body }));
+  write(`era/${er.id}/index.html`, page({ title: `${er.name} 한능검 문제 ${qs.length}개와 해설 | 한능`, desc: `한국사능력검정시험 심화 대비 ${er.name} 연습 문제 ${qs.length}개와 해설. ${ERA_INTRO[er.id].slice(0, 70)}…`, path: `/era/${er.id}/`, body, remind: true }));
 }
 
 // 일정·개편
@@ -130,6 +135,7 @@ write(
     title: '2026 한능검 시험일정 — 81회 접수 11/3, 성적 발표일, 2027 공무원 한국사 대체 | 한능',
     desc: '2026 한국사능력검정시험(한능검) 시험일정 77~81회 전체. 81회 원서접수 11월 3일~10일, 시험 11월 28일, 성적 발표일, 수험표 출력, 환불 기간과 2027년 9급 공무원 한국사 한능검 3급 대체를 공식 일정 기준으로 정리.',
     path: '/schedule/',
+    remind: true,
     body: `<h1>2026 한능검 시험일정 정리</h1>
 <p class="lead">일정은 국사편찬위원회 공식 사이트에서 확인한 회차만 적습니다. 접수 기간과 다음 회차는 반드시 <a href="${SITE.officialExam}" target="_blank" rel="noopener">공식 사이트</a>에서 다시 확인하세요.</p>
 ${nextBox}
@@ -164,6 +170,7 @@ ${nextBox}
       title: '한능검 시험 직전 핵심 정리 — 시대별 빈출 키워드 한 장 요약 | 한능',
       desc: '한국사능력검정시험 심화 시험 직전에 보는 시대별 핵심 정리. 왕별 업적 순서, 헷갈리는 제도 비교, 사건 연표를 표로 정리했습니다.',
       path: '/summary/',
+      remind: true,
       body: `<h1>한능검 시험 직전 핵심 정리</h1>
 <p class="lead">시험장 가기 전에 한 번 훑어보는 시대별 빈출 키워드입니다. 왕별 업적과 사건은 일어난 순서(→)대로 적었어요. 정리를 본 뒤에는 시대별 문제로 바로 확인해 보세요.</p>
 <p class="hint">${toc}</p>

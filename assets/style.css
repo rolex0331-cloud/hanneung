@@ -204,3 +204,13 @@ details summary { cursor: pointer; font-weight: 700; color: var(--ink-2); margin
 
 .q-actions #q-next { margin-left: auto; }
 @media (max-width: 480px) { .q-actions #q-next { flex: 1; } }
+
+/* 매일 알림 카드 */
+.remind { padding: 20px 22px; margin: 18px 0; border-left: 4px solid var(--seal, #c92a2a); }
+.remind .remind-h { margin: 4px 0 6px; font-size: 19px; letter-spacing: -0.03em; }
+.remind .remind-sub { margin: 0 0 12px; }
+.remind-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.remind-time { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted, #6b7180); margin-right: 4px; }
+.remind-time select { font: inherit; font-size: 15px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line, #e6dece); background: var(--card); color: inherit; }
+.remind .remind-done { margin: 10px 0 0; }
+@media (max-width: 560px) { .remind-row .btn { flex: 1 1 100%; text-align: center; } }

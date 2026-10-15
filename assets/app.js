@@ -336,4 +336,6 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'Enter' && !$('q-next').disabled) nextQ();
 });
 window.addEventListener('hashchange', route);
-route();
+// 알림 링크(/today/)로 들어오면 바로 오늘의 문제
+if (location.pathname.startsWith('/today') && (!location.hash || location.hash === '#/')) location.replace('#/daily');
+else route();

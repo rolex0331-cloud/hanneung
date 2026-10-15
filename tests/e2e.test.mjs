@@ -150,3 +150,32 @@ test('정적 페이지와 404', async () => {
   assert.match(await txt(page, 'h1'), /찾을 수 없어요/);
   await page.close();
 });
+
+test('매일 알림: /today/는 바로 오늘의 문제, 카드 링크(구글·ics)가 시각 선택을 따라감', async () => {
+  const t = await open('/today/');
+  await t.page.waitForSelector('#quiz-count');
+  assert.match(await txt(t.page, '#quiz-count'), /1 \/ 10/);
+  assert.match(t.page.url(), /\/today\/#\/daily$/);
+  assert.equal(await t.page.$eval('meta[name="robots"]', (m) => m.content), 'noindex');
+  assert.deepEqual(t.errors, []);
+  await t.page.close();
+
+  for (const path of ['/', '/summary/', '/era/goryeo/', '/schedule/']) {
+    const { page, errors, external } = await open(path, { mobile: true });
+    const card = path === '/' ? '#remind-home' : '[data-remind]';
+    await page.waitForSelector(`${card} [data-r="google"]`);
+    const g = await page.$eval(`${card} [data-r="google"]`, (a) => a.href);
+    const u = new URL(g);
+    assert.match(u.searchParams.get('recur'), /^RRULE:FREQ=DAILY;UNTIL=\d{8}T145959Z$/, path);
+    assert.match(u.searchParams.get('details'), /\/today\//);
+    assert.match(await page.$eval(`${card} [data-r="ics"]`, (a) => a.href), /^data:text\/calendar/);
+    await page.select(`${card} select`, '07:00');
+    assert.match(new URL(await page.$eval(`${card} [data-r="google"]`, (a) => a.href)).searchParams.get('dates'), /T070000\//);
+    assert.match(await txt(page, `${card} .remind-h`), /07:00/);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+    assert.equal(overflow, false, `${path} 가로 넘침`);
+    assert.deepEqual(errors, [], path);
+    assert.deepEqual(external, [], path);
+    await page.close();
+  }
+});

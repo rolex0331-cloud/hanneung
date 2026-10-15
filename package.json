@@ -9,10 +9,10 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test tests/unit.test.mjs tests/content.test.mjs tests/site.test.mjs",
+    "test": "node --test tests/unit.test.mjs tests/content.test.mjs tests/site.test.mjs tests/remind.test.mjs",
     "test:e2e": "node --test tests/e2e.test.mjs",
     "serve": "node scripts/serve.mjs",
-    "deploy": "node --test tests/unit.test.mjs tests/content.test.mjs tests/site.test.mjs && node scripts/build.mjs && npx wrangler deploy && node scripts/verify-live.mjs",
+    "deploy": "node --test tests/unit.test.mjs tests/content.test.mjs tests/site.test.mjs tests/remind.test.mjs && node scripts/build.mjs && npx wrangler deploy && node scripts/verify-live.mjs",
     "preview": "wrangler dev"
   },
   "license": "UNLICENSED",
