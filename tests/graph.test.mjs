@@ -35,6 +35,7 @@ test('모호함 검사: 같은 묶음 안에서 단서는 한 대상에만, 자�
       }
     }
     if (e.passage.includes(bare(e.name))) problems.push(`${e.id} 자료에 이름 노출`);
+    for (const c of e.clues) if (c.includes(bare(e.name))) problems.push(`${e.id} 단서 "${c}"에 이름 노출`);
   }
   assert.deepEqual(problems, []);
 });
@@ -125,4 +126,13 @@ test('혼동 기록: 오답 +1(고른 선지의 출처), 정답이면 감소, �
 test('비교 페이지 경로', () => {
   assert.equal(vsPath('seongjong-g', 'gwangjong'), '/vs/gwangjong-seongjong-g/');
   assert.equal(vsPath('gwangjong', 'sejong'), null);
+});
+
+test('고정 문항도 선지가 대상 이름이면 혼동 기록 (예: 대한 자강회 문제에서 신민회 선택)', () => {
+  const it = { id: 'modern-28', options: ['보안회', '대한 자강회', '신민회', '독립 협회', '대한 광복회'], answer: 1 };
+  assert.deepEqual(updateConfusion({}, it, 2), { 'jagang.sinmin': 1 });
+  assert.deepEqual(updateConfusion({}, it, 4), {}, '다른 묶음(대한 광복회)은 기록 안 함');
+  assert.deepEqual(updateConfusion({}, { id: 'x', options: ['가', '나'], answer: 0 }, 1), {}, '이름이 아니면 무시');
+  // 괄호 없는 '성종'은 고려·조선 둘 다라 모호 → 기록 안 함, '광종'은 유일
+  assert.deepEqual(updateConfusion({}, { id: 'y', options: ['광종', '성종', '태조'], answer: 0 }, 1), {});
 });

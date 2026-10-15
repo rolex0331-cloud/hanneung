@@ -6,6 +6,7 @@ export const SETS = [
   { id: 'goryeo-king', name: '고려의 왕', noun: '왕', ask: '고려의 왕은' },
   { id: 'joseon-king', name: '조선의 왕', noun: '왕', ask: '조선의 왕은' },
   { id: 'land-tax', name: '조선의 토지·수취 제도', noun: '제도', ask: '제도는' },
+  { id: 'modern-group', name: '개항기·대한제국 단체', noun: '단체', ask: '단체는' },
   { id: 'colonial-group', name: '일제 강점기 단체', noun: '단체', ask: '단체는' },
   { id: 'contemp-gov', name: '현대 정부', noun: '정부', ask: '정부는' },
 ];
@@ -97,6 +98,28 @@ export const ENTITIES = [
     facts: ['군포를 1년에 2필에서 1필로 줄였다.', '토지 1결당 쌀 2두의 결작을 거두었다.', '일부 상류층에게 선무군관포를 거두었다.'],
     passage: '백성이 내던 군포를 절반으로 줄이고, 모자라는 재정은 땅에 덧붙여 거두는 세금과 어장·염전·선박에 매기는 세금으로 채웠다.' },
 
+  // ── 개항기·대한제국 단체 (애국 계몽 운동 등)
+  { id: 'dongnip', set: 'modern-group', era: 'modern', name: '독립 협회',
+    clues: ['서재필', '독립문', '만민 공동회', '헌의 6조'],
+    facts: ['독립문을 세웠다.', '관민 공동회를 열어 헌의 6조를 결의하였다.', '러시아의 절영도 조차 요구를 저지하였다.', '중추원을 의회식으로 개편하려 하였다.'],
+    passage: '미국에서 돌아온 인물이 중심이 되어 1896년 창립하였다. 청의 사신을 맞던 영은문 자리 근처에 기념물을 세우고, 서울 종로에서 누구나 참여하는 대규모 집회를 열었다.' },
+  { id: 'boan', set: 'modern-group', era: 'modern', name: '보안회',
+    clues: ['황무지 개간권', '1904년 조직', '송수만'],
+    facts: ['일본의 황무지 개간권 요구를 철회시켰다.', '1904년 일본의 토지 침탈 시도에 맞서 조직되었다.'],
+    passage: '1904년 일본이 대한제국 전국의 버려진 땅을 개간할 권리를 요구하자, 이에 반대하는 집회를 열어 결국 요구를 거두게 하였다.' },
+  { id: 'heonjeong', set: 'modern-group', era: 'modern', name: '헌정 연구회',
+    clues: ['입헌 정체', '일진회 규탄', '1905년 조직'],
+    facts: ['입헌 군주제 수립을 목표로 하였다.', '친일 단체 일진회를 규탄하였다.'],
+    passage: '1905년 조직되어 헌법에 따른 군주 정치를 연구하고 알렸으며, 친일 단체의 반민족 행위를 규탄하였다.' },
+  { id: 'jagang', set: 'modern-group', era: 'modern', name: '대한 자강회',
+    clues: ['고종 강제 퇴위 반대', '전국 지회와 월보', '윤치호·장지연'],
+    facts: ['고종의 강제 퇴위 반대 운동을 벌이다 해산되었다.', '전국에 지회를 두고 월보를 간행하였다.'],
+    passage: '1906년 교육과 산업을 일으켜 스스로 힘을 기르자는 목표로 창립하였다. 이듬해 일제가 황제를 강제로 물러나게 하자 반대 운동을 벌이다 강제로 해산되었다.' },
+  { id: 'sinmin', set: 'modern-group', era: 'modern', name: '신민회',
+    clues: ['안창호·양기탁', '비밀 결사', '대성 학교·오산 학교', '105인 사건', '서간도 삼원보'],
+    facts: ['공화 정체의 근대 국가 수립을 목표로 하였다.', '대성 학교와 오산 학교를 세웠다.', '태극 서관과 자기 회사를 운영하였다.', '서간도 삼원보에 독립운동 기지를 건설하였다.', '105인 사건으로 해체되었다.'],
+    passage: '1907년 비밀리에 조직되어 공화정 국가를 세우려 하였다. 평양과 정주에 학교를 세우고 서점과 도자기 회사를 운영하였으며, 만주에 독립군 기지를 만들었다.' },
+
   // ── 일제 강점기 단체
   { id: 'singan', set: 'colonial-group', era: 'colonial', name: '신간회',
     clues: ['민족 유일당', '이상재', '광주 학생 항일 운동 진상 조사단', '기회주의자 배격'],
@@ -159,6 +182,7 @@ export const PAIRS = [
   ['taejo-g', 'gwangjong'], ['gwangjong', 'seongjong-g'], ['seongjong-g', 'hyeonjong-g'], ['sukjong-g', 'injong-g'],
   ['taejo-j', 'taejong-j'], ['taejong-j', 'sejo'], ['sejong', 'sejo'], ['sejo', 'seongjong-j'], ['yeongjo', 'jeongjo'],
   ['gwajeon', 'jikjeon'], ['yeongjeong', 'daedong'], ['daedong', 'gyunyeok'], ['yeongjeong', 'gyunyeok'],
+  ['jagang', 'sinmin'], ['dongnip', 'sinmin'], ['boan', 'jagang'], ['heonjeong', 'jagang'],
   ['singan', 'geunu'], ['uiyeol', 'hanin'], ['gwangbokhoe', 'uiyeol'],
   ['rhee', 'park'], ['chun', 'roh'], ['roh', 'kys'], ['kys', 'kdj'], ['kdj', 'rmh'],
 ];

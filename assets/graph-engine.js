@@ -86,20 +86,41 @@ export function pairItems(a, b, seed, n = 6) {
   });
 }
 
+// 고정 문항 선지 → 대상: 정확한 이름 또는 괄호를 뗀 이름이 하나뿐일 때만
+const NAME = new Map();
+{
+  const bareCount = new Map();
+  for (const e of ENTITIES) {
+    const b = e.name.replace(/\([^)]*\)/g, '').trim();
+    bareCount.set(b, (bareCount.get(b) || 0) + 1);
+  }
+  for (const e of ENTITIES) {
+    NAME.set(e.name, e.id);
+    const b = e.name.replace(/\([^)]*\)/g, '').trim();
+    if (bareCount.get(b) === 1) NAME.set(b, e.id);
+  }
+  for (const [b, n] of bareCount) if (n > 1) NAME.delete(b);
+}
+
 // 혼동 기록 갱신: 오답이면 (정답 대상, 고른 선지 대상) 쌍 +1, 정답이면 함께 나온 상대와의 쌍 −0.34
+// 그래프 문항은 출처(src)로, 고정 문항은 선지 이름으로 대상을 찾는다(같은 묶음끼리만)
 export function updateConfusion(conf, item, picked) {
-  if (!item?.graph) return conf;
-  const me = item.entity;
+  if (!item?.options) return conf;
+  const src = item.graph ? item.src : item.options.map((o) => NAME.get(o) || null);
+  const me = item.graph ? item.entity : src[item.answer];
+  if (!me) return conf;
+  const same = (id) => id && id !== me && ENT.get(id).set === ENT.get(me).set;
+  item = { ...item, src };
   if (picked !== item.answer) {
     const other = item.src[picked];
-    if (other && other !== me) {
+    if (same(other)) {
       const k = pairKey(me, other);
       conf[k] = Math.round(((conf[k] || 0) + 1) * 100) / 100;
     }
   } else {
     for (const other of item.src) {
       const k = pairKey(me, other);
-      if (other !== me && conf[k]) {
+      if (same(other) && conf[k]) {
         conf[k] = Math.max(0, Math.round((conf[k] - 0.34) * 100) / 100);
         if (!conf[k]) delete conf[k];
       }
