@@ -113,16 +113,27 @@ const md = (iso) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8))}`;
 const examRows = EXAMS.filter((e) => e.verified)
   .map((e) => `<tr><td>제${e.round}회</td><td>${esc(e.apply || '')}</td><td><b>${md(e.date)}</b></td><td>${e.result ? md(e.result) : ''}</td><td>${e.type}</td></tr>`)
   .join('');
+const upcoming = EXAMS.filter((e) => e.verified && (e.result || e.date) >= BUILT).sort((a, b) => a.date.localeCompare(b.date));
+const nextBox = upcoming.map((nextExam) => `<h2>제${nextExam.round}회 (${md(nextExam.date)}${nextExam.date < BUILT ? ', 시험 종료' : ''})</h2>
+<div class="card" style="padding:4px 16px"><table><tbody>
+<tr><th scope="row">원서 접수</th><td>${esc(nextExam.apply)}</td></tr>
+${nextExam.extra ? `<tr><th scope="row">취소 좌석 접수</th><td>${esc(nextExam.extra)} (잔여 좌석 한정)</td></tr>` : ''}
+${nextExam.ticket ? `<tr><th scope="row">수험표 출력</th><td>${esc(nextExam.ticket)}</td></tr>` : ''}
+<tr><th scope="row">시험일</th><td><b>${md(nextExam.date)}</b> (${nextExam.type})</td></tr>
+${nextExam.result ? `<tr><th scope="row">성적 발표</th><td>${md(nextExam.result)} — 공식 홈페이지에서 조회·인증서 출력(정부24 출력 가능)</td></tr>` : ''}
+${nextExam.refund ? `<tr><th scope="row">응시료 환불</th><td>${esc(nextExam.refund)}</td></tr>` : ''}
+</tbody></table></div>`).join('\n');
 const examSrc = [...new Set(EXAMS.filter((e) => e.verified).map((e) => e.source))].join(', ');
 write(
   'schedule/index.html',
   page({
-    title: '한능검 시험 일정과 2027 공무원 시험 한국사 대체 정리 | 한능',
-    desc: '한국사능력검정시험 일정(공식 확인분)과 2027년 9급 공무원 시험 한국사 과목의 한능검 3급 대체, 급수 기준을 출처와 함께 정리했습니다.',
+    title: '2026 한능검 시험일정 — 81회 접수 11/3, 성적 발표일, 2027 공무원 한국사 대체 | 한능',
+    desc: '2026 한국사능력검정시험(한능검) 시험일정 77~81회 전체. 81회 원서접수 11월 3일~10일, 시험 11월 28일, 성적 발표일, 수험표 출력, 환불 기간과 2027년 9급 공무원 한국사 한능검 3급 대체를 공식 일정 기준으로 정리.',
     path: '/schedule/',
-    body: `<h1>한능검 시험 일정과 2027 개편 정리</h1>
+    body: `<h1>2026 한능검 시험일정 정리</h1>
 <p class="lead">일정은 국사편찬위원회 공식 사이트에서 확인한 회차만 적습니다. 접수 기간과 다음 회차는 반드시 <a href="${SITE.officialExam}" target="_blank" rel="noopener">공식 사이트</a>에서 다시 확인하세요.</p>
-<h2>확인된 시험 일정</h2>
+${nextBox}
+<h2>2026년 전체 시험 일정</h2>
 <div class="card" style="padding:6px 16px"><table><thead><tr><th>회차</th><th>원서 접수</th><th>시험일</th><th>성적 발표</th><th>종류</th></tr></thead><tbody>${examRows}</tbody></table></div>
 <p class="src">확인 출처: ${esc(examSrc)}. 2026년 남은 회차는 심화만 시행합니다. 성적은 발표일에 공식 홈페이지에서 조회하고 인증서를 출력합니다.</p>
 <h2>급수 기준 (심화)</h2>
