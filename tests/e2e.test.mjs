@@ -201,3 +201,58 @@ test('매일 알림: 안드로이드는 구글 캘린더만, 아이폰은 캘린
     await page.close();
   }
 });
+
+test('단서 그래프: 오늘의 문제에 3문항, 쌍 집중으로 헷갈림 기록 → 결과 지도·비교표·홈 반영, 비교 페이지', async () => {
+  const { ENT } = await import('../assets/graph-engine.js');
+  const isGraph = (q) => /^(다음 단서와 관련된|「|다음 자료와 관련된)/.test(q);
+  // 1) 오늘의 문제: 10문항 중 그래프 3
+  const d = await open('/#/daily');
+  let g = 0;
+  for (let i = 0; i < 10; i++) {
+    if (isGraph(await txt(d.page, '#q-text'))) g++;
+    await d.page.click('#q-opts .opt');
+    await d.page.click('#q-next');
+  }
+  assert.equal(g, 3, '그래프 문항 3개');
+  assert.deepEqual(d.errors, []);
+  await d.page.close();
+
+  // 2) 쌍 집중: 매번 '상대'의 선지를 골라 일부러 헷갈림
+  const { page, errors } = await open('/pair/#/pair/gwangjong.seongjong-g', { mobile: true });
+  assert.match(await txt(page, '#quiz-count'), /1 \/ 6/);
+  assert.match(await txt(page, '#quiz-title'), /광종 vs 성종\(고려\)/);
+  for (let i = 0; i < 6; i++) {
+    const other = ENT.get(i % 2 ? 'gwangjong' : 'seongjong-g');
+    const opts = await page.$$eval('#q-opts .opt span:last-child', (s) => s.map((x) => x.textContent));
+    const idx = opts.findIndex((o) => o === other.name || other.facts.includes(o));
+    assert.ok(idx >= 0, `${i}번에 상대 선지 있음`);
+    await page.click(`#q-opts .opt[data-i="${idx}"]`);
+    assert.match(await txt(page, '#q-verdict'), /오답/);
+    await page.click('#q-next');
+  }
+  await page.waitForSelector('#r-confuse:not([hidden])');
+  const map = await txt(page, '#r-confuse-list');
+  assert.match(map, /광종/);
+  assert.match(map, /성종\(고려\)/);
+  assert.match(map, /6번/);
+  assert.match(await page.$eval('#r-confuse-list a.btn.primary', (a) => a.getAttribute('href')), /^\/pair\/#\/pair\/gwangjong\.seongjong-g$/);
+  assert.match(await page.$eval('#r-confuse-list a.btn:not(.primary)', (a) => a.getAttribute('href')), /^\/vs\/gwangjong-seongjong-g\/$/);
+  assert.equal(await page.$eval('#r-compare', (e) => e.hidden), false);
+  assert.match(await txt(page, '#r-compare'), /쌍기/);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, '모바일 가로 넘침');
+  // 3) 홈에 내 헷갈림 짝
+  await page.goto(BASE + '/', { waitUntil: 'networkidle0' });
+  assert.match(await txt(page, '#home-pairs'), /가장 많이 헷갈린 짝[\s\S]*광종/);
+  assert.deepEqual(errors, []);
+  await page.close();
+
+  // 4) 비교 페이지
+  const v = await open('/vs/gwangjong-seongjong-g/', { mobile: true });
+  assert.match(await txt(v.page, 'h1'), /광종 성종\(고려\) 차이/);
+  assert.ok(await v.page.$('a[href="/pair/#/pair/gwangjong.seongjong-g"]'));
+  assert.match(await txt(v.page, '.cmp'), /노비안검법[\s\S]*시무 28조/);
+  assert.equal(await v.page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, '비교 페이지 가로 넘침');
+  assert.deepEqual(v.errors, []);
+  assert.deepEqual(v.external, []);
+  await v.page.close();
+});

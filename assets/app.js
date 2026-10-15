@@ -1,6 +1,8 @@
 import { QUESTIONS, ERAS } from './questions.js';
 import { dailyIds, buildQuiz, randomIds, summarize, streak, daysUntil } from './engine.js';
 import { SITE, EXAMS, ADS, ANALYTICS } from './config.js';
+import { graphItem, dailyGraphIds, pairItems, updateConfusion, topPairs, vsPath, ENT } from './graph-engine.js';
+import { PAIRS } from './graph.js';
 
 const $ = (id) => document.getElementById(id);
 const KEY = 'hanneung:v1';
@@ -13,7 +15,7 @@ function today() {
 }
 
 // ---- 저장소 (막혀 있어도 동작)
-const blank = () => ({ stats: {}, wrong: [], daily: {} });
+const blank = () => ({ stats: {}, wrong: [], daily: {}, confuse: {} });
 let db = blank();
 try {
   db = { ...blank(), ...(JSON.parse(localStorage.getItem(KEY) || 'null') || {}) };
@@ -33,6 +35,12 @@ function record(id, ok) {
   if (ok) s.c++;
   if (ok) db.wrong = db.wrong.filter((w) => w !== id);
   else if (!db.wrong.includes(id)) db.wrong.unshift(id);
+}
+
+// 고정 문항(QUESTIONS)과 그래프 문항(g:…)을 id 순서대로 섞어 만든다
+function buildItems(ids, seed) {
+  const fixed = new Map(buildQuiz(QUESTIONS, ids.filter((id) => !id.startsWith('g:')), seed).map((it) => [it.id, it]));
+  return ids.map((id) => (id.startsWith('g:') ? graphItem(id, db.confuse) : fixed.get(id))).filter(Boolean);
 }
 
 // ---- 측정 (설정된 경우만, 개인정보·답안 미전송)
@@ -93,6 +101,10 @@ function renderHome() {
     $('exam-dday').textContent = '공고 확인';
     $('exam-info').innerHTML = `<a href="${SITE.officialExam}" target="_blank" rel="noopener">공식 일정 보기 ↗</a>`;
   }
+  const mine = topPairs(db.confuse, 3);
+  $('home-pairs').innerHTML = mine.length
+    ? `<p class="hint">내가 가장 많이 헷갈린 짝</p><ul class="confuse card">${confuseList(mine)}</ul>`
+    : `<div class="chips">${PAIRS.slice(0, 12).map(([a, b]) => `<a class="chip" href="${pairLink(a, b)}">${esc(ENT.get(a).name)} ↔ ${esc(ENT.get(b).name)}</a>`).join('')}</div>`;
   $('era-list').innerHTML = ERAS.map((er) => {
     const ids = QUESTIONS.filter((q) => q.era === er.id).map((q) => q.id);
     const tried = ids.filter((id) => db.stats[id]);
@@ -111,8 +123,11 @@ function start(kind) {
   let title;
   let mode = 'study';
   let limit = 0;
+  let items = null;
   if (kind === 'daily') {
-    ids = dailyIds(QUESTIONS, t, 10);
+    // 고정 7 + 단서 그래프 3(3·6·9번째)
+    ids = dailyIds(QUESTIONS, t, 7);
+    dailyGraphIds(t, 3).forEach((g, i) => ids.splice(2 + i * 3, 0, g));
     title = `오늘의 10문제 · ${Number(t.slice(5, 7))}월 ${Number(t.slice(8))}일`;
   } else if (kind === 'mock') {
     ids = randomIds(QUESTIONS, 50, `mock:${Date.now()}`);
@@ -122,13 +137,19 @@ function start(kind) {
   } else if (kind === 'wrong') {
     ids = db.wrong.slice(0, 30);
     title = '오답 다시 풀기';
+  } else if (kind.startsWith('pair:')) {
+    const [a, b] = kind.slice(5).split('.');
+    items = pairItems(a, b, Date.now());
+    if (!items.length) return false;
+    ids = items.map((it) => it.id);
+    title = `${ENT.get(a).name} vs ${ENT.get(b).name} 집중 6문제`;
   } else if (kind.startsWith('era:')) {
     const er = kind.slice(4);
     ids = randomIds(QUESTIONS, 200, `era:${er}:${Date.now()}`, (q) => q.era === er);
     title = `${eraName(er)} 전체`;
   } else return false;
   if (!ids.length) return false;
-  const items = buildQuiz(QUESTIONS, ids, kind === 'daily' ? `daily-opts:${t}` : `${kind}:${Date.now()}`);
+  items ||= buildItems(ids, kind === 'daily' ? `daily-opts:${t}` : `${kind}:${Date.now()}`);
   S = { kind, title, items, answers: Array(items.length).fill(null), revealed: Array(items.length).fill(false), idx: 0, mode, limit, startedAt: Date.now() };
   show('quiz');
   $('quiz-title').textContent = title;
@@ -198,6 +219,7 @@ function pick(i) {
     S.revealed[S.idx] = true;
     const it = S.items[S.idx];
     record(it.id, i === it.answer);
+    updateConfusion(db.confuse, it, i);
     save();
   } else {
     S.answers[S.idx] = i;
@@ -219,7 +241,10 @@ function finish() {
   if (!S) return;
   if (S.mode === 'exam') {
     const unanswered = S.answers.filter((a) => a === null).length;
-    S.items.forEach((it, i) => record(it.id, S.answers[i] === it.answer));
+    S.items.forEach((it, i) => {
+      record(it.id, S.answers[i] === it.answer);
+      if (S.answers[i] !== null) updateConfusion(db.confuse, it, S.answers[i]);
+    });
     S.unanswered = unanswered;
   }
   const sum = summarize(S.items, S.answers, ERAS);
@@ -251,13 +276,42 @@ function renderResult() {
       return `<li class="card rv ${ok ? 'ok' : 'no'}"><p class="rv-q"><span class="tag ${ok ? 'ok' : 'no'}">${ok ? '정답' : a === null ? '미응답' : '오답'}</span>${esc(it.q)}</p><p class="rv-a">정답 ${'①②③④⑤'[it.answer]} ${esc(it.options[it.answer])}${!ok && a !== null ? `<br><span class="mine">내 답 ${'①②③④⑤'[a]} ${esc(it.options[a])}</span>` : ''}</p><p class="rv-e">${esc(it.e)}</p></li>`;
     })
     .join('');
+  renderConfuse();
   adSlot($('ad-result'), ADS.slots.result);
+}
+
+// ---- 헷갈림 지도: 고른 오답의 출처 대상으로 찾은 '헷갈리는 짝'
+const pairLink = (a, b) => `/pair/#/pair/${a}.${b}`;
+function confuseList(pairs) {
+  return pairs
+    .map((p) => {
+      const vs = vsPath(p.a.id, p.b.id);
+      return `<li><span class="pair"><b>${esc(p.a.name)}</b> ↔ <b>${esc(p.b.name)}</b></span><span class="cnt">${p.n}번</span><span class="acts"><a class="btn sm primary" href="${pairLink(p.a.id, p.b.id)}">이 둘만 6문제</a>${vs ? `<a class="btn sm" href="${vs}">차이표</a>` : ''}</span></li>`;
+    })
+    .join('');
+}
+function renderConfuse() {
+  const top = topPairs(db.confuse, 3);
+  $('r-confuse').hidden = !top.length;
+  $('r-confuse-list').innerHTML = confuseList(top);
+  const cmp = $('r-compare');
+  if (S.kind.startsWith('pair:')) {
+    const [a, b] = S.kind.slice(5).split('.').map((id) => ENT.get(id));
+    cmp.hidden = false;
+    cmp.innerHTML = `<div class="sec-head"><h2>${esc(a.name)} vs ${esc(b.name)} 한눈에</h2></div><div class="card cmp"><table><thead><tr><th></th><th>${esc(a.name)}</th><th>${esc(b.name)}</th></tr></thead><tbody><tr><th scope="row">단서</th><td>${a.clues.map(esc).join(', ')}</td><td>${b.clues.map(esc).join(', ')}</td></tr><tr><th scope="row">${a.set.endsWith('king') ? '업적' : '내용'}</th><td><ul>${a.facts.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></td><td><ul>${b.facts.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></td></tr></tbody></table></div>`;
+  } else cmp.hidden = true;
 }
 
 // ---- 오답노트
 function renderWrong() {
   show('wrong');
-  const list = db.wrong.map((id) => QUESTIONS.find((q) => q.id === id)).filter(Boolean);
+  const list = db.wrong
+    .map((id) => {
+      if (!id.startsWith('g:')) return QUESTIONS.find((q) => q.id === id);
+      const g = graphItem(id);
+      return g && { era: g.era, q: g.q, o: g.options, a: g.answer, e: g.e };
+    })
+    .filter(Boolean);
   $('wrong-empty').hidden = list.length > 0;
   $('wrong-body').hidden = list.length === 0;
   $('wrong-list').innerHTML = list
@@ -305,6 +359,8 @@ function route() {
   else if (h === '#/wrong') renderWrong();
   else if (h === '#/wrong-quiz') {
     if (!start('wrong')) location.hash = '#/wrong';
+  } else if (h.startsWith('#/pair/')) {
+    if (!start(`pair:${h.slice(7)}`)) location.hash = '#/';
   } else if (h.startsWith('#/era/')) {
     if (!start(`era:${h.slice(6)}`)) location.hash = '#/';
   } else if (h === '#/result') {

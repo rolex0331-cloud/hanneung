@@ -6,6 +6,8 @@ import { QUESTIONS, ERAS } from '../assets/questions.js';
 import { EXAMS, SITE, ADS } from '../assets/config.js';
 import { presentQuestion, rng, hashSeed } from '../assets/engine.js';
 import { SUMMARY } from './summary-data.mjs';
+import { PAIRS } from '../assets/graph.js';
+import { ENT, SET, vsPath, josa } from '../assets/graph-engine.js';
 import { TIMES, reminderPlan, icsText, icsPath } from '../assets/remind.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -93,7 +95,10 @@ const APP = readFileSync(join(root, 'scripts', 'index.template.html'), 'utf8').r
 <meta name="build" content="${BUILD_ID}">${ADS_HEAD}`);
 write('index.html', APP);
 // 알림 재방문 입구: 같은 앱을 /today/ 에서 열면 바로 오늘의 문제. 이 경로의 조회 수 = 알림으로 돌아온 방문
-write('today/index.html', APP.replace('<link rel="canonical" href="https://hanneung.com/">', '<link rel="canonical" href="https://hanneung.com/">\n<meta name="robots" content="noindex">'));
+const NOINDEX_APP = APP.replace('<link rel="canonical" href="https://hanneung.com/">', '<link rel="canonical" href="https://hanneung.com/">\n<meta name="robots" content="noindex">');
+write('today/index.html', NOINDEX_APP);
+// 쌍 집중 퀴즈 입구: /pair/#/pair/a.b — 이 경로의 조회 수 = 헷갈림 지도·비교 페이지에서 집중 퀴즈로 들어온 수
+write('pair/index.html', NOINDEX_APP);
 write('build.txt', `${BUILD_ID}\n`);
 // 알림용 .ics (시각별). 시작일은 빌드일, 목표 시험은 빌드 시점 기준 — 시험이 지나기 전에 재배포 필요
 for (const t of TIMES) write(icsPath(t).slice(1), icsText(reminderPlan(new Date(`${BUILT}T00:00:00+09:00`), t), new Date(`${BUILT}T00:00:00Z`)));
@@ -184,6 +189,39 @@ ${secs}
   );
 }
 
+// 헷갈리는 짝 비교 페이지 (/vs/a-b/) — 단서 그래프에서 생성
+const bareName = (n) => n.replace(/\([^)]*\)/g, '').trim();
+for (const [ai, bi] of PAIRS) {
+  const a = ENT.get(ai);
+  const b = ENT.get(bi);
+  const set = SET.get(a.set);
+  const others = PAIRS.filter(([x, y]) => ENT.get(x).set === a.set && !(x === ai && y === bi))
+    .map(([x, y]) => `<a href="${vsPath(x, y)}">${esc(ENT.get(x).name)} vs ${esc(ENT.get(y).name)}</a>`)
+    .join(' · ');
+  const col = (e) => `<td><ul>${e.facts.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></td>`;
+  const body = `<h1>${esc(a.name)} ${esc(b.name)} 차이</h1>
+<p class="lead">한능검에서 자주 섞여 나오는 ${set.name} 짝입니다. 지문에 아래 <b>단서</b>가 보이면 누구인지 바로 가려낼 수 있어요. 선지에는 상대의 업적이 오답으로 섞여 나옵니다.</p>
+<div class="card cmp"><table><thead><tr><th></th><th>${esc(a.name)}</th><th>${esc(b.name)}</th></tr></thead><tbody>
+<tr><th scope="row">단서</th><td>${a.clues.map(esc).join(', ')}</td><td>${b.clues.map(esc).join(', ')}</td></tr>
+<tr><th scope="row">${set.noun === '왕' ? '업적' : '내용'}</th>${col(a)}${col(b)}</tr>
+</tbody></table></div>
+<h2>이런 자료가 나오면</h2>
+<div class="card" style="padding:14px 18px"><p><b>${esc(a.name)}</b> — ${esc(a.passage)}</p><p><b>${esc(b.name)}</b> — ${esc(b.passage)}</p></div>
+<p class="cta"><a class="btn primary lg" href="/pair/#/pair/${ai}.${bi}">이 둘만 6문제 풀기</a><a class="btn lg" href="/era/${a.era}/">${esc(ERAS.find((e) => e.id === a.era).name)} 문제</a></p>
+${others ? `<h2>같이 헷갈리는 짝</h2><p class="hint">${others}</p>` : ''}
+<p class="src">한능이 직접 정리한 비교입니다. 오류는 <a href="${SITE.contact}" target="_blank" rel="noopener">제보 게시판</a>으로 알려 주세요.</p>`;
+  write(
+    `vs/${ai}-${bi}/index.html`,
+    page({
+      title: `${bareName(a.name)} ${bareName(b.name)} 차이 — 한능검 헷갈리는 ${set.name} 비교 | 한능`,
+      desc: `${josa(bareName(a.name), '과/와')} ${bareName(b.name)}, 한능검에서 헷갈리는 둘의 차이를 단서·업적 비교표로 정리했습니다. ${a.clues.slice(0, 2).join('·')} vs ${b.clues.slice(0, 2).join('·')}. 둘만 골라 6문제로 바로 확인.`,
+      path: `/vs/${ai}-${bi}/`,
+      body,
+      remind: true,
+    })
+  );
+}
+
 // 소개·개인정보
 write(
   'about/index.html',
@@ -217,7 +255,7 @@ write(
   page({ title: '페이지를 찾을 수 없어요 | 한능', desc: '요청한 페이지가 없습니다.', path: '/404', noindex: true, body: `<h1>페이지를 찾을 수 없어요</h1><p class="lead">주소가 바뀌었거나 없는 페이지입니다.</p><p class="cta"><a class="btn primary lg" href="/#/daily">오늘의 10문제 풀기</a><a class="btn lg" href="/">처음으로</a></p>` })
 );
 
-const urls = ['/', '/summary/', '/schedule/', '/about/', ...ERAS.map((e) => `/era/${e.id}/`)];
+const urls = ['/', '/summary/', '/schedule/', '/about/', ...ERAS.map((e) => `/era/${e.id}/`), ...PAIRS.map(([a, b]) => vsPath(a, b))];
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${BASE}${u}</loc><lastmod>${BUILT}</lastmod></url>`).join('\n')}\n</urlset>\n`);
 if (PUB) write('ads.txt', `google.com, ${PUB}, DIRECT, f08c47fec0942fa0
 `);

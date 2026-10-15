@@ -127,7 +127,7 @@ a { color: inherit; text-underline-offset: 3px; }
 .qcard { margin: 18px 0 40px; padding: 26px 26px 22px; scroll-margin-top: 80px; }
 @media (max-width: 480px) { .qcard { padding: 20px 16px 18px; } }
 .q-era { margin: 0 0 8px; font-size: 13px; font-weight: 750; color: var(--seal); }
-.q-text { margin: 0 0 18px; font-size: clamp(18px, 2.6vw, 21px); line-height: 1.55; font-weight: 750; letter-spacing: -0.025em; }
+.q-text { white-space: pre-line; margin: 0 0 18px; font-size: clamp(18px, 2.6vw, 21px); line-height: 1.55; font-weight: 750; letter-spacing: -0.025em; }
 .opts { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .opt { width: 100%; display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); font: 550 16px/1.55 var(--font); cursor: pointer; transition: border-color 0.12s, background 0.12s; }
 .opt:hover:not(:disabled) { border-color: var(--line-2); background: color-mix(in srgb, var(--paper) 40%, var(--card)); }
@@ -214,3 +214,24 @@ details summary { cursor: pointer; font-weight: 700; color: var(--ink-2); margin
 .remind-time select { font: inherit; font-size: 15px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line, #e6dece); background: var(--card); color: inherit; }
 .remind .remind-done { margin: 10px 0 0; }
 @media (max-width: 560px) { .remind-row .btn { flex: 1 1 100%; text-align: center; } }
+
+/* 헷갈림 지도·짝 */
+.confuse { list-style: none; margin: 0; padding: 6px 18px; }
+.confuse li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.confuse li:last-child { border-bottom: 0; }
+.confuse .pair { flex: 1 1 200px; font-size: 16px; }
+.confuse .cnt { color: var(--seal); font-weight: 800; font-size: 14px; }
+.confuse .acts { display: flex; gap: 6px; }
+.btn.sm { min-height: 36px; padding: 0 12px; font-size: 14px; border-radius: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-block; padding: 9px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--line-2); color: var(--ink); text-decoration: none; font-weight: 650; font-size: 14px; }
+.chip:hover { border-color: var(--ink-2); }
+.cmp { padding: 4px 14px; overflow-x: auto; }
+.cmp table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.cmp th, .cmp td { border-bottom: 1px solid var(--line); padding: 10px 8px; text-align: left; vertical-align: top; line-height: 1.6; }
+.cmp thead th { font-size: 15px; }
+.cmp tbody th { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.cmp ul { margin: 0; padding-left: 1.05em; }
+.cmp ul li { margin: 0 0 4px; }
+.cmp td { width: 44%; }
+@media (max-width: 480px) { .cmp { padding: 2px 8px; } .cmp th, .cmp td { padding: 9px 5px; font-size: 13.5px; } }
