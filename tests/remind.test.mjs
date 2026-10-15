@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reminderPlan, googleCalUrl, icsText, TODAY_URL } from '../assets/remind.js';
+import { reminderPlan, googleCalUrl, icsText, TODAY_URL, platformOf, icsPath } from '../assets/remind.js';
 
 const EX = [
   { round: 80, date: '2026-10-17', verified: true },
@@ -48,4 +48,13 @@ test('.ics: CRLF, 필수 항목, 알람, 시간대', () => {
   for (const line of ['BEGIN:VCALENDAR', 'VERSION:2.0', 'TZID:Asia/Seoul', 'DTSTART;TZID=Asia/Seoul:20261018T070000', 'RRULE:FREQ=DAILY;UNTIL=20261127T145959Z', 'BEGIN:VALARM', 'TRIGGER:PT0M', 'URL:https://hanneung.com/today/', 'DTSTAMP:20261018T000000Z', 'END:VCALENDAR'])
     assert.ok(t.split('\r\n').includes(line), line);
   assert.match(t, /SUMMARY:한능 오늘의 10문제 \(81회까지\)/);
+});
+
+test('기기 구분과 .ics 경로', () => {
+  assert.equal(platformOf('Mozilla/5.0 (Linux; Android 14) ... NAVER(inapp)'), 'android');
+  assert.equal(platformOf('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'), 'ios');
+  assert.equal(platformOf('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 5), 'ios', 'iPadOS 데스크톱 모드');
+  assert.equal(platformOf('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 0), 'desktop');
+  assert.equal(platformOf('Mozilla/5.0 (Windows NT 10.0; Win64; x64)'), 'desktop');
+  assert.equal(icsPath('21:00'), '/cal/2100.ics');
 });

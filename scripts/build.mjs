@@ -6,6 +6,7 @@ import { QUESTIONS, ERAS } from '../assets/questions.js';
 import { EXAMS, SITE, ADS } from '../assets/config.js';
 import { presentQuestion, rng, hashSeed } from '../assets/engine.js';
 import { SUMMARY } from './summary-data.mjs';
+import { TIMES, reminderPlan, icsText, icsPath } from '../assets/remind.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'dist');
@@ -94,6 +95,8 @@ write('index.html', APP);
 // 알림 재방문 입구: 같은 앱을 /today/ 에서 열면 바로 오늘의 문제. 이 경로의 조회 수 = 알림으로 돌아온 방문
 write('today/index.html', APP.replace('<link rel="canonical" href="https://hanneung.com/">', '<link rel="canonical" href="https://hanneung.com/">\n<meta name="robots" content="noindex">'));
 write('build.txt', `${BUILD_ID}\n`);
+// 알림용 .ics (시각별). 시작일은 빌드일, 목표 시험은 빌드 시점 기준 — 시험이 지나기 전에 재배포 필요
+for (const t of TIMES) write(icsPath(t).slice(1), icsText(reminderPlan(new Date(`${BUILT}T00:00:00+09:00`), t), new Date(`${BUILT}T00:00:00Z`)));
 
 // 시대별 페이지
 const eraNav = (cur) => `<p class="hint">${ERAS.map((e) => (e.id === cur ? `<b>${e.name}</b>` : `<a href="/era/${e.id}/">${e.name}</a>`)).join(' · ')}</p>`;
@@ -221,6 +224,6 @@ if (PUB) write('ads.txt', `google.com, ${PUB}, DIRECT, f08c47fec0942fa0
 write('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${BASE}/sitemap.xml\n`);
 write(
   '_headers',
-  `/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n/assets/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n/assets/*.js\n  Cache-Control: public, max-age=3600\n/assets/*.css\n  Cache-Control: public, max-age=3600\n`
+  `/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n/assets/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n/assets/*.js\n  Cache-Control: public, max-age=3600\n/assets/*.css\n  Cache-Control: public, max-age=3600\n/cal/*\n  Content-Type: text/calendar; charset=utf-8\n  Cache-Control: public, max-age=3600\n`
 );
 console.log('built', readdirSync(out).join(', '));

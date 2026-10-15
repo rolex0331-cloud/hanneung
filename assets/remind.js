@@ -94,6 +94,15 @@ export function icsText(plan, now = new Date()) {
 }
 
 const KEY = 'hanneung:remind';
+
+// 안드로이드: 구글 캘린더 앱이 .ics를 가져오지 못하고 인앱 브라우저는 파일 받기를 막는 경우가 많아 구글 캘린더만.
+// iOS: 서버의 .ics 주소(text/calendar)를 열면 바로 '캘린더에 추가' 창. 데스크톱: 둘 다.
+export function platformOf(ua = '', touchPoints = 0) {
+  if (/Android/i.test(ua)) return 'android';
+  if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && touchPoints > 1)) return 'ios';
+  return 'desktop';
+}
+export const icsPath = (hhmm) => `/cal/${hhmm.replace(':', '')}.ics`;
 const md = (iso) => `${Number(iso.slice(5, 7))}월 ${Number(iso.slice(8))}일`;
 
 // [data-remind] 요소에 알림 카드를 그린다
@@ -107,14 +116,15 @@ export function mountRemind(el) {
     /* 저장소 차단 */
   }
   const sel = TIMES.includes(saved?.hhmm) ? saved.hhmm : '21:00';
+  const os = platformOf(navigator.userAgent, navigator.maxTouchPoints || 0);
   el.classList.add('card', 'remind');
+  el.dataset.os = os;
   el.innerHTML = `<p class="label">매일 알림</p>
 <h3 class="remind-h"></h3>
 <p class="hint remind-sub"></p>
 <div class="remind-row">
   <label class="remind-time">알림 시각 <select aria-label="알림 시각">${TIMES.map((t) => `<option${t === sel ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
-  <a class="btn primary" data-r="google" target="_blank" rel="noopener">구글 캘린더에 추가</a>
-  <a class="btn" data-r="ics" download="hanneung-daily.ics">휴대폰 캘린더에 추가</a>
+  ${os === 'ios' ? '<a class="btn primary" data-r="ics">아이폰 캘린더에 추가</a><a class="btn" data-r="google" target="_blank" rel="noopener">구글 캘린더에 추가</a>' : `<a class="btn primary" data-r="google" target="_blank" rel="noopener">구글 캘린더에 추가</a>${os === 'desktop' ? '<a class="btn" data-r="ics" download="hanneung-daily.ics">캘린더 파일(.ics) 받기</a>' : ''}`}
 </div>
 <p class="hint remind-done" hidden></p>`;
   const s = el.querySelector('select');
@@ -126,7 +136,7 @@ export function mountRemind(el) {
     el.querySelector('.remind-h').textContent = plan.round ? `${plan.round}회(${md(plan.examDate)}) 시험 전날까지, 매일 ${s.value}에 10문제` : `매일 ${s.value}에 10문제`;
     el.querySelector('.remind-sub').textContent = `${md(plan.start)}부터 ${md(plan.last)}까지 ${plan.days}일 동안 캘린더 알림이 울려요. 알림을 누르면 바로 오늘의 문제로 들어옵니다. 로그인·개인정보 입력 없음, 캘린더에서 언제든 지울 수 있어요.`;
     g.href = googleCalUrl(plan);
-    f.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(icsText(plan))}`;
+    if (f) f.href = icsPath(s.value);
   };
   const mark = () => {
     try {
@@ -135,11 +145,11 @@ export function mountRemind(el) {
       /* 무시 */
     }
     done.hidden = false;
-    done.textContent = '캘린더 화면에서 "저장(추가)"까지 눌러야 알림이 등록돼요. 휴대폰 캘린더 파일이 열리지 않으면 구글 캘린더 버튼을 써 주세요.';
+    done.textContent = os === 'ios' ? '열린 창에서 "추가"를 눌러야 등록돼요.' : '구글 캘린더 화면에서 "저장"을 눌러야 등록돼요. 구글 로그인이 필요해요.';
   };
   s.addEventListener('change', update);
   g.addEventListener('click', mark);
-  f.addEventListener('click', mark);
+  f?.addEventListener('click', mark);
   update();
   if (saved?.at) {
     done.hidden = false;

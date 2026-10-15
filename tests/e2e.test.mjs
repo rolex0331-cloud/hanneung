@@ -168,7 +168,7 @@ test('매일 알림: /today/는 바로 오늘의 문제, 카드 링크(구글·i
     const u = new URL(g);
     assert.match(u.searchParams.get('recur'), /^RRULE:FREQ=DAILY;UNTIL=\d{8}T145959Z$/, path);
     assert.match(u.searchParams.get('details'), /\/today\//);
-    assert.match(await page.$eval(`${card} [data-r="ics"]`, (a) => a.href), /^data:text\/calendar/);
+    assert.match(await page.$eval(`${card} [data-r="ics"]`, (a) => a.href), /\/cal\/2100\.ics$/);
     await page.select(`${card} select`, '07:00');
     assert.match(new URL(await page.$eval(`${card} [data-r="google"]`, (a) => a.href)).searchParams.get('dates'), /T070000\//);
     assert.match(await txt(page, `${card} .remind-h`), /07:00/);
@@ -176,6 +176,28 @@ test('매일 알림: /today/는 바로 오늘의 문제, 카드 링크(구글·i
     assert.equal(overflow, false, `${path} 가로 넘침`);
     assert.deepEqual(errors, [], path);
     assert.deepEqual(external, [], path);
+    await page.close();
+  }
+});
+
+test('매일 알림: 안드로이드는 구글 캘린더만, 아이폰은 캘린더 파일 우선(.ics 주소가 실제 캘린더)', async () => {
+  const UA = {
+    android: 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36 NAVER(inapp; search; 2000; 12.8.1)',
+    ios: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+  };
+  for (const [os, ua] of Object.entries(UA)) {
+    const { page, errors } = await open('/summary/', { mobile: true, before: `Object.defineProperty(navigator, 'userAgent', { get: () => ${JSON.stringify(ua)} })` });
+    await page.waitForSelector('[data-remind] [data-r="google"]');
+    assert.equal(await page.$eval('[data-remind]', (e) => e.dataset.os), os);
+    const btns = await page.$$eval('[data-remind] .remind-row .btn', (bs) => bs.map((b) => b.dataset.r + (b.classList.contains('primary') ? '*' : '')));
+    assert.deepEqual(btns, os === 'android' ? ['google*'] : ['ics*', 'google'], os);
+    if (os === 'ios') {
+      const href = await page.$eval('[data-remind] [data-r="ics"]', (a) => a.href);
+      const body = await page.evaluate((u) => fetch(u).then((r) => r.text()), href);
+      assert.match(body, /^BEGIN:VCALENDAR\r\n/);
+      assert.match(body, /RRULE:FREQ=DAILY;UNTIL=\d{8}T145959Z/);
+    }
+    assert.deepEqual(errors, [], os);
     await page.close();
   }
 });
