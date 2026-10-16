@@ -3,6 +3,7 @@
 // 오답 선지는 같은 묶음의 다른 대상의 '진짜 사실'로 만든다 → 고른 오답으로 무엇과 헷갈렸는지 알 수 있다.
 
 export const SETS = [
+  { id: 'three-king', name: '삼국의 왕', noun: '왕', ask: '삼국의 왕은' },
   { id: 'goryeo-king', name: '고려의 왕', noun: '왕', ask: '고려의 왕은' },
   { id: 'joseon-king', name: '조선의 왕', noun: '왕', ask: '조선의 왕은' },
   { id: 'land-tax', name: '조선의 토지·수취 제도', noun: '제도', ask: '제도는' },
@@ -12,6 +13,48 @@ export const SETS = [
 ];
 
 export const ENTITIES = [
+  // ── 삼국의 왕 (둘 이상에게 해당하는 사실은 넣지 않음: 율령 반포=소수림왕·법흥왕, 양과 교류=무령왕·성왕 등)
+  { id: 'sosurim', set: 'three-king', era: 'three', name: '소수림왕',
+    clues: ['전진의 순도', '태학 설립', '초문사·이불란사'],
+    facts: ['전진으로부터 불교를 받아들였다.', '태학을 세워 인재를 길렀다.'],
+    passage: '아버지가 백제와 싸우다 전사한 뒤 즉위한 왕은 전진에서 온 승려를 맞아 불교를 받아들이고, 나라의 인재를 기르는 교육 기관을 세웠다.' },
+  { id: 'gwanggaeto', set: 'three-king', era: 'three', name: '광개토 대왕',
+    clues: ['영락', '호우명 그릇', '신라 구원(400)', '후연 공격'],
+    facts: ['영락이라는 연호를 사용하였다.', '신라에 침입한 왜를 물리쳤다.', '후연을 공격하여 요동 지역을 차지하였다.'],
+    passage: '왕은 즉위하자 독자적인 연호를 쓰고, 신라 왕의 요청에 따라 보병과 기병 5만을 보내 신라에 침입한 왜를 물리쳤다.' },
+  { id: 'jangsu', set: 'three-king', era: 'three', name: '장수왕',
+    clues: ['평양 천도(427)', '충주 고구려비', '개로왕 전사', '남진 정책'],
+    facts: ['평양으로 도읍을 옮겼다.', '백제의 한성을 함락하였다.', '충주(중원) 고구려비를 세웠다.'],
+    passage: '왕은 도읍을 국내성에서 대동강 유역으로 옮긴 뒤 남쪽으로 세력을 넓혀, 백제의 수도를 함락하고 그 왕을 죽였다.' },
+  { id: 'goi', set: 'three-king', era: 'three', name: '고이왕',
+    clues: ['6좌평', '16관등', '관리 복색 제정'],
+    facts: ['6좌평과 16관등의 관제를 마련하였다.', '관리의 등급에 따라 옷 색깔을 정하였다.'],
+    passage: '왕은 6명의 좌평과 16등급의 관등을 마련하고, 관리들이 등급에 따라 자주색·붉은색·푸른색 옷을 입게 하였다.' },
+  { id: 'geunchogo', set: 'three-king', era: 'three', name: '근초고왕',
+    clues: ['마한 정복', '칠지도', '고흥의 서기', '고국원왕 전사'],
+    facts: ['마한의 남은 세력을 정복하였다.', '평양성을 공격하여 고국원왕을 전사시켰다.', '고흥에게 역사서 서기를 편찬하게 하였다.'],
+    passage: '왕은 남쪽의 마한 세력을 정복하고, 북쪽으로 고구려의 평양성까지 쳐들어가 고구려 왕을 전사시켰다. 이 무렵 박사 고흥이 역사책을 썼다.' },
+  { id: 'muryeong', set: 'three-king', era: 'three', name: '무령왕',
+    clues: ['22담로', '송산리 벽돌무덤', '영동대장군'],
+    facts: ['지방의 22담로에 왕족을 파견하였다.', '중국 양으로부터 영동대장군 칭호를 받았다.'],
+    passage: '왕은 지방의 22개 거점에 왕족을 보내 다스리게 하였다. 그의 무덤은 중국 남조의 영향을 받은 벽돌무덤으로, 무덤 주인을 알려 주는 지석이 함께 발견되었다.' },
+  { id: 'seong-b', set: 'three-king', era: 'three', name: '성왕',
+    clues: ['사비 천도', '남부여', '관산성 전투', '노리사치계'],
+    facts: ['사비로 도읍을 옮기고 국호를 남부여로 고쳤다.', '신라와 연합하여 한강 하류 지역을 되찾았다.', '관산성 전투에서 전사하였다.', '일본에 불교를 전하였다.'],
+    passage: '왕은 도읍을 웅진에서 사비로 옮기고 나라 이름을 새로 고쳤다. 신라와 함께 한강 하류를 되찾았으나, 이후 신라와의 전투에서 전사하였다.' },
+  { id: 'jijeung', set: 'three-king', era: 'three', name: '지증왕',
+    clues: ['우산국 복속', '동시전', '우경 장려', '국호 신라'],
+    facts: ['국호를 신라로 정하고 왕이라는 칭호를 사용하였다.', '이사부를 보내 우산국을 복속하였다.', '소를 이용한 밭갈이(우경)를 장려하였다.', '시장을 감독하는 동시전을 설치하였다.'],
+    passage: '왕은 나라 이름을 새로 정하고 처음으로 왕이라는 칭호를 썼다. 소를 이용한 밭갈이를 장려하고, 장군을 보내 울릉도의 작은 나라를 복속하였다.' },
+  { id: 'beopheung', set: 'three-king', era: 'three', name: '법흥왕',
+    clues: ['이차돈', '병부 설치', '상대등', '건원 연호', '금관가야 병합'],
+    facts: ['이차돈의 순교를 계기로 불교를 공인하였다.', '병부를 설치하였다.', '상대등을 두었다.', '금관가야를 병합하였다.', '건원이라는 연호를 사용하였다.'],
+    passage: '왕은 신하의 순교를 계기로 불교를 공인하고, 군사 업무를 맡는 관청을 처음 두었다. 또 김해 지역의 가야를 병합하였다.' },
+  { id: 'jinheung', set: 'three-king', era: 'three', name: '진흥왕',
+    clues: ['화랑도 개편', '단양 적성비', '북한산 순수비', '거칠부', '대가야 정복'],
+    facts: ['화랑도를 국가 조직으로 개편하였다.', '대가야를 정복하였다.', '북한산 등에 순수비를 세웠다.', '거칠부에게 국사를 편찬하게 하였다.', '백제가 되찾은 한강 하류 지역을 빼앗았다.'],
+    passage: '왕은 청소년 수련 단체를 국가 조직으로 개편하고, 한강 유역을 차지한 뒤 새로 넓힌 땅을 돌아보며 기념비를 세웠다.' },
+
   // ── 고려의 왕
   { id: 'taejo-g', set: 'goryeo-king', era: 'goryeo', name: '태조(왕건)',
     clues: ['훈요 10조', '사심관', '기인 제도', '흑창', '정계·계백료서'],
@@ -179,6 +222,7 @@ export const ENTITIES = [
 
 // 자주 헷갈리는 쌍 (같은 묶음 안). 비교 페이지(/vs/)와 사전 혼동 가중치로 쓴다.
 export const PAIRS = [
+  ['sosurim', 'beopheung'], ['gwanggaeto', 'jangsu'], ['goi', 'geunchogo'], ['geunchogo', 'seong-b'], ['muryeong', 'seong-b'], ['jijeung', 'beopheung'], ['beopheung', 'jinheung'], ['seong-b', 'jinheung'],
   ['taejo-g', 'gwangjong'], ['gwangjong', 'seongjong-g'], ['seongjong-g', 'hyeonjong-g'], ['sukjong-g', 'injong-g'],
   ['taejo-j', 'taejong-j'], ['taejong-j', 'sejo'], ['sejong', 'sejo'], ['sejo', 'seongjong-j'], ['yeongjo', 'jeongjo'],
   ['gwajeon', 'jikjeon'], ['yeongjeong', 'daedong'], ['daedong', 'gyunyeok'], ['yeongjeong', 'gyunyeok'],
