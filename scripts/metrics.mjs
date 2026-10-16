@@ -55,6 +55,7 @@ const path = (p) => kr.filter((r) => r.dimensions.requestPath.startsWith(p));
 const ext = (rows) => rows.filter((r) => r.dimensions.refererHost && !r.dimensions.refererHost.endsWith('hanneung.com'));
 const noRef = (rows) => rows.filter((r) => !r.dimensions.refererHost);
 console.log(`★ 일정 알림 재방문(/result/·/apply/ 리퍼러 없음=캘린더 알림 추정) ${sum(noRef(path('/result')))}·${sum(noRef(path('/apply')))} · 검색 등 외부 유입 ${sum(ext(path('/result')))}·${sum(ext(path('/apply')))}`);
+console.log(`★ 홈 화면 아이콘으로 연 방문(/app/ 페이지뷰, 한국) ${sum(path("/app"))}`);
 console.log(`★ 쌍 집중 퀴즈 진입(/pair/ 페이지뷰, 한국) ${sum(path('/pair'))}`);
 console.log(`★ 비교 페이지(/vs/*) 페이지뷰 ${sum(path('/vs/'))} · 그중 외부 유입 ${sum(ext(path('/vs/')))} (비교: /summary/ 외부 유입 ${sum(ext(path('/summary')))})`);
 table('날짜별 (한국, 헤드리스 제외)', group(kr, (d) => d.date).sort((a, b) => a[0].localeCompare(b[0])));

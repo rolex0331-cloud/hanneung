@@ -241,3 +241,6 @@ details summary { cursor: pointer; font-weight: 700; color: var(--ink-2); margin
 .ev-when { min-width: 96px; font-size: 15px; }
 .ev-what { flex: 1 1 120px; font-weight: 700; }
 .ev-list .acts { display: flex; gap: 6px; }
+.install { position: relative; }
+.install .install-how { margin: 0; font-size: 15px; line-height: 1.65; color: var(--ink-2); background: var(--paper-2); border-radius: 10px; padding: 10px 12px; }
+.install-close { position: absolute; top: 12px; right: 12px; border: 0; background: none; color: var(--muted); font: 600 13px/1 var(--font); cursor: pointer; padding: 6px; }

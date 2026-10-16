@@ -64,6 +64,9 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <meta name="theme-color" content="#F7F3EA">
 <meta name="build" content="${BUILD_ID}">${ADS_HEAD}
 <link rel="icon" href="/assets/symbol.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/assets/icons/apple-180.png">
+<meta name="apple-mobile-web-app-title" content="한능">
 <link rel="preload" href="/assets/fonts/pretendard-subset.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/style.css">
 </head>
@@ -76,6 +79,7 @@ ${remind ? '<div data-remind></div>' : ''}
 </main>
 ${FOOTER}
 ${remind || events ? '<script type="module" src="/assets/remind.js"></script>' : ''}
+<script type="module" src="/assets/pwa.js"></script>
 </body>
 </html>
 `;
@@ -100,6 +104,75 @@ const NOINDEX_APP = APP.replace('<link rel="canonical" href="https://hanneung.co
 write('today/index.html', NOINDEX_APP);
 // 쌍 집중 퀴즈 입구: /pair/#/pair/a.b — 이 경로의 조회 수 = 헷갈림 지도·비교 페이지에서 집중 퀴즈로 들어온 수
 write('pair/index.html', NOINDEX_APP);
+// PWA: 매니페스트·서비스 워커. 아이콘으로 열면 /app/ (이 경로 조회 수 = 홈 화면 아이콘으로 다시 온 방문)
+write('app/index.html', NOINDEX_APP);
+write(
+  'manifest.webmanifest',
+  JSON.stringify(
+    {
+      id: '/app/',
+      name: '한능 — 한능검 하루 10문제',
+      short_name: '한능',
+      description: '한국사능력검정시험 심화 대비: 오늘의 10문제, 헷갈림 지도, 오답노트, 모의고사',
+      lang: 'ko',
+      start_url: '/app/',
+      scope: '/',
+      display: 'standalone',
+      background_color: '#F7F3EA',
+      theme_color: '#F7F3EA',
+      icons: [
+        { src: '/assets/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: '/assets/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: '/assets/icons/maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+        { src: '/assets/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ],
+      shortcuts: [
+        { name: '오늘의 10문제', url: '/today/', icons: [{ src: '/assets/icons/icon-192.png', sizes: '192x192' }] },
+        { name: '실전 모의고사', url: '/app/#/mock', icons: [{ src: '/assets/icons/icon-192.png', sizes: '192x192' }] },
+      ],
+    },
+    null,
+    2
+  )
+);
+{
+  // 앱 셸 미리 저장: 앱 화면 4개 + assets 전부(폰트 포함). HTML·JS·CSS는 네트워크 우선(배포 즉시 반영), 실패 시 저장본
+  const listAssets = (dir, base) =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? listAssets(join(dir, d.name), `${base}${d.name}/`) : [`${base}${d.name}`]));
+  const pre = ['/', '/app/', '/today/', '/pair/', '/manifest.webmanifest', ...listAssets(join(out, 'assets'), '/assets/').filter((f) => !/LICENSE|\.txt$|og\.png$/.test(f))];
+  write(
+    'sw.js',
+    `// 한능 서비스 워커 (빌드 ${BUILD_ID}) — scripts/build.mjs가 생성
+const V = 'hanneung-${BUILD_ID}';
+const PRE = ${JSON.stringify(pre)};
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(V).then((c) => c.addAll(PRE)).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('hanneung-') && k !== V).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname === '/sw.js') return;
+  // 폰트·아이콘은 저장본 우선
+  if (/^\\/assets\\/(fonts|icons)\\//.test(url.pathname)) {
+    e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => { const copy = res.clone(); caches.open(V).then((c) => c.put(req, copy)); return res; })));
+    return;
+  }
+  // 나머지(HTML·JS·CSS·.ics)는 네트워크 우선, 끊기면 저장본 → 화면 이동이면 앱 셸
+  e.respondWith(
+    fetch(req)
+      .then((res) => {
+        if (res.ok) { const copy = res.clone(); caches.open(V).then((c) => c.put(req, copy)); }
+        return res;
+      })
+      .catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || (req.mode === 'navigate' ? caches.match(url.pathname.startsWith('/today') ? '/today/' : '/app/') : Response.error())))
+  );
+});
+`
+  );
+}
 write('build.txt', `${BUILD_ID}\n`);
 // 알림용 .ics (시각별). 시작일은 빌드일, 목표 시험은 빌드 시점 기준 — 시험이 지나기 전에 재배포 필요
 for (const t of TIMES) write(icsPath(t).slice(1), icsText(reminderPlan(new Date(`${BUILT}T00:00:00+09:00`), t), new Date(`${BUILT}T00:00:00Z`)));
@@ -321,6 +394,6 @@ if (PUB) write('ads.txt', `google.com, ${PUB}, DIRECT, f08c47fec0942fa0
 write('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${BASE}/sitemap.xml\n`);
 write(
   '_headers',
-  `/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n/assets/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n/assets/*.js\n  Cache-Control: public, max-age=3600\n/assets/*.css\n  Cache-Control: public, max-age=3600\n/cal/*\n  Content-Type: text/calendar; charset=utf-8\n  Cache-Control: public, max-age=3600\n`
+  `/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n/assets/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n/assets/*.js\n  Cache-Control: public, max-age=3600\n/assets/*.css\n  Cache-Control: public, max-age=3600\n/cal/*\n  Content-Type: text/calendar; charset=utf-8\n  Cache-Control: public, max-age=3600\n/sw.js\n  Cache-Control: no-cache\n/manifest.webmanifest\n  Content-Type: application/manifest+json\n  Cache-Control: public, max-age=3600\n`
 );
 console.log('built', readdirSync(out).join(', '));

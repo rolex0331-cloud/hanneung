@@ -16,6 +16,9 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#F7F3EA">
 <link rel="icon" href="/assets/symbol.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/assets/icons/apple-180.png">
+<meta name="apple-mobile-web-app-title" content="한능">
 <link rel="preload" href="/assets/fonts/pretendard-subset.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/style.css">
 <script type="application/ld+json">
@@ -37,6 +40,8 @@
         <a class="btn lg" href="#/mock">실전 모의고사 50문항</a>
       </div>
     </div>
+
+    <div data-install id="install-home" hidden></div>
 
     <div class="cards">
       <div class="card stat-card">
@@ -123,6 +128,7 @@
       <ul class="confuse card" id="r-confuse-list"></ul>
     </section>
     <section class="sec" id="r-compare" hidden></section>
+    <div data-install id="install-result" hidden></div>
     <div data-remind id="remind-result"></div>
     <div class="ad" id="ad-result" hidden></div>
     <section class="sec">
@@ -148,6 +154,7 @@
 {{FOOTER}}
 <script type="module" src="/assets/app.js"></script>
 <script type="module" src="/assets/remind.js"></script>
+<script type="module" src="/assets/pwa.js"></script>
 <noscript><p class="wrap">문제풀이는 자바스크립트가 필요합니다. <a href="/era/pre/">시대별 문제와 해설</a>은 그대로 볼 수 있어요.</p></noscript>
 </body>
 </html>

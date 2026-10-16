@@ -286,3 +286,38 @@ test('시험 일정 알림: 홈·일정 페이지 카드, 성적 발표·접수 
   assert.ok(body.startsWith('BEGIN:VCALENDAR') && body.includes('TRIGGER:-PT10M'));
   await i.page.close();
 });
+
+test('PWA: 서비스 워커가 페이지를 제어, 오프라인에서도 /app/ 문제풀이, 설치 카드(안드로이드 설치 신호·아이폰 안내·인앱 안내)', async () => {
+  const { page, errors } = await open('/app/');
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload({ waitUntil: 'networkidle0' });
+  assert.ok(await page.evaluate(() => !!navigator.serviceWorker.controller), '서비스 워커 제어');
+  await page.setOfflineMode(true);
+  await page.goto(BASE + '/app/#/daily', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('#quiz-count');
+  assert.match(await txt(page, '#quiz-count'), /1 \/ 10/);
+  await page.click('#q-opts .opt');
+  assert.equal(await page.$eval('#q-feedback', (e) => e.hidden), false, '오프라인 채점');
+  await page.setOfflineMode(false);
+  // 안드로이드 크롬: 설치 신호가 오면 카드와 버튼
+  await page.goto(BASE + '/', { waitUntil: 'networkidle0' });
+  // 크롬은 설치 조건(매니페스트·서비스 워커)을 만족하면 실제로 설치 신호를 보낸다 — 직접 보내 확인
+  await page.evaluate(() => { const e = new Event('beforeinstallprompt'); e.prompt = () => {}; e.userChoice = Promise.resolve({ outcome: 'dismissed' }); window.dispatchEvent(e); });
+  assert.equal(await page.$eval('#install-home', (e) => e.hidden), false);
+  assert.ok(await page.$('#install-home [data-act="install"]'));
+  await page.click('#install-home [data-act="close"]');
+  assert.equal(await page.$eval('#install-home', (e) => e.hidden), true, '닫기');
+  // 오프라인 구간의 브라우저 자체 메시지(서비스 워커 업데이트 확인 실패 등)는 정상
+  assert.deepEqual(errors.filter((m) => !/ERR_INTERNET_DISCONNECTED/.test(m)), []);
+  await page.close();
+  const UAS = {
+    ios: ['Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', /공유 버튼/],
+    inapp: ['Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36 NAVER(inapp; search; 2000; 12.8.1)', /다른 브라우저로 열기/],
+  };
+  for (const [k, [ua, re]] of Object.entries(UAS)) {
+    const x = await open('/', { mobile: true, before: `Object.defineProperty(navigator, 'userAgent', { get: () => ${JSON.stringify(ua)} }); localStorage.removeItem('hanneung:install');` });
+    assert.equal(await x.page.$eval('#install-home', (e) => e.hidden), false, k);
+    assert.match(await txt(x.page, '#install-home'), re, k);
+    await x.page.close();
+  }
+});

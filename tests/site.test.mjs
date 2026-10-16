@@ -54,3 +54,26 @@ test('시대별 페이지에 문항과 해설이 실제로 들어 있다', () =>
   assert.ok((s.match(/<details>/g) || []).length >= 10);
   assert.match(s, /정답과 해설/);
 });
+
+test('PWA: 매니페스트 필수 항목·아이콘 실제 크기, 서비스 워커 미리 저장 목록이 실제 파일', async () => {
+  const { readFileSync, existsSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const d = join(import.meta.dirname, '..', 'dist');
+  const m = JSON.parse(readFileSync(join(d, 'manifest.webmanifest'), 'utf8'));
+  for (const k of ['name', 'short_name', 'start_url', 'display', 'icons', 'id']) assert.ok(m[k], k);
+  assert.equal(m.display, 'standalone');
+  assert.equal(m.start_url, '/app/');
+  for (const need of ['192x192', '512x512']) assert.ok(m.icons.some((i) => i.sizes === need && i.purpose === 'any'), need);
+  assert.ok(m.icons.some((i) => i.purpose === 'maskable'));
+  for (const i of m.icons) {
+    const b = readFileSync(join(d, i.src));
+    const w = b.readUInt32BE(16), h = b.readUInt32BE(20); // PNG IHDR
+    assert.equal(`${w}x${h}`, i.sizes, i.src);
+  }
+  const sw = readFileSync(join(d, 'sw.js'), 'utf8');
+  const pre = JSON.parse(sw.match(/const PRE = (\[.*\]);/)[1]);
+  for (const u of pre) assert.ok(existsSync(join(d, u === '/' ? 'index.html' : u.endsWith('/') ? `${u}index.html` : u)), u);
+  assert.match(sw, new RegExp(`hanneung-${readFileSync(join(d, 'build.txt'), 'utf8').trim()}`), '캐시 이름에 빌드 ID');
+  assert.match(readFileSync(join(d, 'app', 'index.html'), 'utf8'), /noindex/);
+  assert.match(readFileSync(join(d, '_headers'), 'utf8'), /\/sw\.js\n  Cache-Control: no-cache/);
+});
