@@ -354,6 +354,41 @@ ${others ? `<h2>같이 헷갈리는 짝</h2><p class="hint">${others}</p>` : ''}
   );
 }
 
+// 블로그 재료(/kit/): 사장님 전용 — 썸네일 저장·제목/본문/태그 복사. 검색 제외(noindex + X-Robots-Tag), 메뉴·sitemap 없음
+{
+  const kitDir = join(root, 'tools', 'blog', 'posts');
+  const posts = JSON.parse(readFileSync(join(kitDir, 'posts.json'), 'utf8'));
+  const part = (txt, name) => (txt.split(`[${name}]`)[1] || '').split(/\n\[(제목|본문|태그)\]/)[0].trim();
+  const cards = posts
+    .map((p) => {
+      const txt = readFileSync(join(kitDir, `${p.id}.txt`), 'utf8').replace(/\r\n/g, '\n');
+      cpSync(join(kitDir, `${p.id}.png`), join(out, 'kit', `${p.id}.png`));
+      const note = txt.startsWith('※') ? txt.split('\n')[0] : '';
+      const field = (k, label, rows) => `<div class="kit-f"><div class="kit-h"><b>${label}</b><button type="button" class="btn sm primary" data-copy="${p.id}-${k}">${label} 복사</button></div><textarea id="${p.id}-${k}" rows="${rows}" readonly>${esc(part(txt, label))}</textarea></div>`;
+      return `<section class="card kit${p.posted ? ' done' : ''}">
+<h2>${esc(p.title)}${p.posted ? ' <span class="tag ok">올림</span>' : ''}</h2>
+<p class="hint">올릴 때: <b>${esc(p.when)}</b>${note ? ` · ${esc(note.replace(/^※\s*/, ''))}` : ''}</p>
+<img src="/kit/${p.id}.png" alt="${esc(p.title)} 썸네일" width="540" height="540" loading="lazy">
+<p class="kit-img"><a class="btn sm" href="/kit/${p.id}.png" download="hanneung-${p.id}.png">이미지 저장</a><span class="hint">휴대폰은 이미지를 길게 눌러 저장해도 돼요</span></p>
+${field('t', '제목', 2)}${field('b', '본문', 10)}${field('g', '태그', 2)}
+</section>`;
+    })
+    .join('\n');
+  write(
+    'kit/index.html',
+    page({
+      title: '블로그 재료 | 한능',
+      desc: '한능 블로그 글 재료(내부용)',
+      path: '/kit/',
+      noindex: true,
+      body: `<h1>블로그 재료</h1>
+<p class="lead">썸네일을 저장하고 제목·본문·태그를 각각 복사해 네이버 블로그에 붙여 넣으세요. 순서: 썸네일 → 제목 → 본문 → 태그 → 발행.</p>
+${cards}
+<script type="module" src="/assets/kit.js"></script>`,
+    })
+  );
+}
+
 // 소개·개인정보
 write(
   'about/index.html',
@@ -394,6 +429,6 @@ if (PUB) write('ads.txt', `google.com, ${PUB}, DIRECT, f08c47fec0942fa0
 write('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${BASE}/sitemap.xml\n`);
 write(
   '_headers',
-  `/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n/assets/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n/assets/*.js\n  Cache-Control: public, max-age=3600\n/assets/*.css\n  Cache-Control: public, max-age=3600\n/cal/*\n  Content-Type: text/calendar; charset=utf-8\n  Cache-Control: public, max-age=3600\n/sw.js\n  Cache-Control: no-cache\n/manifest.webmanifest\n  Content-Type: application/manifest+json\n  Cache-Control: public, max-age=3600\n`
+  `/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n/assets/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n/assets/*.js\n  Cache-Control: public, max-age=3600\n/assets/*.css\n  Cache-Control: public, max-age=3600\n/cal/*\n  Content-Type: text/calendar; charset=utf-8\n  Cache-Control: public, max-age=3600\n/sw.js\n  Cache-Control: no-cache\n/kit/*\n  X-Robots-Tag: noindex\n  Cache-Control: no-cache\n/manifest.webmanifest\n  Content-Type: application/manifest+json\n  Cache-Control: public, max-age=3600\n`
 );
 console.log('built', readdirSync(out).join(', '));

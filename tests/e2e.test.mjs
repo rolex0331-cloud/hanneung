@@ -321,3 +321,28 @@ test('PWA: 서비스 워커가 페이지를 제어, 오프라인에서도 /app/ 
     await x.page.close();
   }
 });
+
+test('블로그 재료(/kit/): 글마다 썸네일·제목/본문/태그, 복사 버튼이 실제로 복사, 검색 제외', async () => {
+  const ctx = browser.defaultBrowserContext();
+  await ctx.overridePermissions(BASE, ['clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
+  const { page, errors } = await open('/kit/', { mobile: true });
+  assert.equal(await page.$eval('meta[name="robots"]', (m) => m.content), 'noindex');
+  const n = await page.$$eval('.kit', (s) => s.length);
+  assert.ok(n >= 3);
+  for (const src of await page.$$eval('.kit img', (s) => s.map((i) => i.src))) {
+    const r = await page.evaluate((u) => fetch(u).then((x) => [x.status, x.headers.get('content-type')]), src);
+    assert.deepEqual(r, [200, 'image/png'], src);
+  }
+  assert.ok(await page.$('.kit a[download][href$=".png"]'), '이미지 저장 버튼');
+  const title = await page.$eval('.kit textarea[id$="-t"]', (t) => t.value);
+  assert.ok(title.length > 5 && !title.includes('[본문]'), title);
+  const body = await page.$eval('.kit textarea[id$="-b"]', (t) => t.value);
+  assert.ok(body.length > 200 && !body.includes('[태그]'));
+  await page.click('.kit button[data-copy$="-b"]');
+  assert.match(await page.$eval('.kit button[data-copy$="-b"]', (b) => b.textContent), /복사됨|직접 복사/);
+  const clip = await page.evaluate(() => navigator.clipboard.readText().catch(() => null));
+  if (clip !== null) assert.equal(clip.replace(/\r\n/g, '\n'), body.replace(/\r\n/g, '\n')); // 윈도 클립보드는 줄바꿈을 CRLF로 바꿈
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+  assert.deepEqual(errors, []);
+  await page.close();
+});
