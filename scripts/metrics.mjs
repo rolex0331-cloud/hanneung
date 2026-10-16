@@ -4,10 +4,15 @@
 // 제외: 헤드리스 브라우저(우리 E2E·운영 점검), 사람 아닌 트래픽 추정치(미국발 데스크톱 첫 화면 단발 방문은 크롤러일 가능성 — 별도 표시만)
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { execSync } from 'node:child_process';
 
 const ACCOUNT = '5c490ad7ebb2719834b13da79cd08392';
 const cfg = join(process.env.APPDATA || join(process.env.HOME || '', '.config'), 'xdg.config', '.wrangler', 'config', 'default.toml');
-const token = readFileSync(cfg, 'utf8').match(/oauth_token\s*=\s*"([^"]+)"/)?.[1];
+// OAuth 토큰은 몇 시간 뒤 만료된다. 만료가 지났으면 wrangler를 한 번 실행해 갱신시킨다.
+const read = () => readFileSync(cfg, 'utf8');
+const exp = read().match(/expiration_time\s*=\s*"([^"]+)"/)?.[1];
+if (!exp || new Date(exp) < new Date(Date.now() + 60e3)) execSync('npx wrangler whoami', { stdio: 'ignore', shell: true });
+const token = read().match(/oauth_token\s*=\s*"([^"]+)"/)?.[1];
 if (!token) throw new Error('wrangler 로그인 필요: npx wrangler login');
 
 const kst = (d) => new Date(d.getTime() + 9 * 3600e3).toISOString().slice(0, 10);
@@ -48,6 +53,8 @@ console.log(`외부 유입 방문(visits, 한국) ${sum(kr, (r) => r.sum.visits)
 console.log(`★ 알림 재방문(/today/ 페이지뷰, 한국) ${sum(kr.filter((r) => r.dimensions.requestPath.startsWith('/today')))}`);
 const path = (p) => kr.filter((r) => r.dimensions.requestPath.startsWith(p));
 const ext = (rows) => rows.filter((r) => r.dimensions.refererHost && !r.dimensions.refererHost.endsWith('hanneung.com'));
+const noRef = (rows) => rows.filter((r) => !r.dimensions.refererHost);
+console.log(`★ 일정 알림 재방문(/result/·/apply/ 리퍼러 없음=캘린더 알림 추정) ${sum(noRef(path('/result')))}·${sum(noRef(path('/apply')))} · 검색 등 외부 유입 ${sum(ext(path('/result')))}·${sum(ext(path('/apply')))}`);
 console.log(`★ 쌍 집중 퀴즈 진입(/pair/ 페이지뷰, 한국) ${sum(path('/pair'))}`);
 console.log(`★ 비교 페이지(/vs/*) 페이지뷰 ${sum(path('/vs/'))} · 그중 외부 유입 ${sum(ext(path('/vs/')))} (비교: /summary/ 외부 유입 ${sum(ext(path('/summary')))})`);
 table('날짜별 (한국, 헤드리스 제외)', group(kr, (d) => d.date).sort((a, b) => a[0].localeCompare(b[0])));

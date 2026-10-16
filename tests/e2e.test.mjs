@@ -256,3 +256,33 @@ test('단서 그래프: 오늘의 문제에 3문항, 쌍 집중으로 헷갈림 
   assert.deepEqual(v.external, []);
   await v.page.close();
 });
+
+test('시험 일정 알림: 홈·일정 페이지 카드, 성적 발표·접수 안내 페이지, 아이폰 .ics', async () => {
+  for (const path of ['/', '/schedule/', '/result/', '/apply/']) {
+    const { page, errors, external } = await open(path, { mobile: true });
+    await page.waitForSelector('[data-events] .ev-list li');
+    const items = await page.$$eval('[data-events] .ev-what', (s) => s.map((x) => x.textContent));
+    assert.ok(items.some((t) => /성적 발표/.test(t)) && items.some((t) => /접수 시작/.test(t)), `${path}: ${items}`);
+    const g = await page.$eval('[data-events] a[data-ev^="result-"]', (a) => a.href);
+    assert.match(new URL(g).searchParams.get('dates'), /^\d{8}T090000\/\d{8}T093000$/);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, `${path} 가로 넘침`);
+    assert.deepEqual(errors, [], path);
+    assert.deepEqual(external, [], path);
+    await page.close();
+  }
+  const r = await open('/result/');
+  assert.match(await txt(r.page, 'h1'), /성적 발표/);
+  assert.match(await txt(r.page, 'main'), /정부24/);
+  await r.page.close();
+  const a = await open('/apply/');
+  assert.match(await txt(a.page, 'h1'), /원서 접수/);
+  await a.page.close();
+  const ios = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+  const i = await open('/apply/', { mobile: true, before: `Object.defineProperty(navigator, 'userAgent', { get: () => ${JSON.stringify(ios)} })` });
+  await i.page.waitForSelector('[data-events] a[data-ev]');
+  const href = await i.page.$eval('[data-events] a[data-ev^="apply-"]', (x) => x.href);
+  assert.match(href, /\/cal\/apply-\d+\.ics$/);
+  const body = await i.page.evaluate((u) => fetch(u).then((res) => res.text()), href);
+  assert.ok(body.startsWith('BEGIN:VCALENDAR') && body.includes('TRIGGER:-PT10M'));
+  await i.page.close();
+});

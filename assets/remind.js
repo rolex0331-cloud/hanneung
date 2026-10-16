@@ -157,4 +157,64 @@ export function mountRemind(el) {
   }
 }
 
-if (typeof document !== 'undefined') document.querySelectorAll('[data-remind]').forEach(mountRemind);
+// ---- 시험 일정 알림(한 번): 성적 발표일, 다음 회차 원서 접수 시작. 알림 링크는 /result/·/apply/ 안내 페이지
+export const RESULT_URL = new URL('/result/', SITE.url).href;
+export const APPLY_URL = new URL('/apply/', SITE.url).href;
+export function examEvents(now = new Date(), exams = EXAMS) {
+  const k = kstNow(now);
+  const out = [];
+  for (const e of exams.filter((x) => x.verified)) {
+    if (e.result && e.result >= k.iso && e.date <= addDays(k.iso, 60))
+      out.push({ key: `result-${e.round}`, round: e.round, kind: 'result', date: e.result, time: '09:00', alarm: 0, title: `한능검 ${e.round}회 성적 발표일`, label: `${e.round}회 성적 발표`, url: RESULT_URL,
+        note: `오늘 ${e.round}회 성적이 발표돼요. 한능에서 조회 방법과 다음 시험 일정을 확인하세요.` });
+    if (e.applyOpen && e.applyOpen.slice(0, 10) >= k.iso)
+      out.push({ key: `apply-${e.round}`, round: e.round, kind: 'apply', date: e.applyOpen.slice(0, 10), time: e.applyOpen.slice(11, 16), alarm: 10, title: `한능검 ${e.round}회 원서 접수 시작 (${e.applyOpen.slice(11, 16)})`, label: `${e.round}회 접수 시작`, url: APPLY_URL,
+        note: `${e.round}회 원서 접수가 ${e.applyOpen.slice(11, 16)}에 시작돼요. 원하는 시험장은 일찍 마감될 수 있어요.` });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+const evStart = (ev) => `${compact(ev.date)}T${ev.time.replace(':', '')}00`;
+const evEnd = (ev) => {
+  const [h, m] = ev.time.split(':').map(Number);
+  const t = h * 60 + m + 30;
+  return `${compact(ev.date)}T${pad(Math.floor(t / 60) % 24)}${pad(t % 60)}00`;
+};
+export function googleEventUrl(ev) {
+  const q = new URLSearchParams({ action: 'TEMPLATE', text: ev.title, details: `${ev.note}\n${ev.url}`, location: ev.url, dates: `${evStart(ev)}/${evEnd(ev)}`, ctz: 'Asia/Seoul' });
+  return `https://calendar.google.com/calendar/render?${q}`;
+}
+export function icsEvent(ev, now = new Date()) {
+  const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const esc = (s) => s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1');
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//hanneung.com//exam event//KO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VTIMEZONE', 'TZID:Asia/Seoul', 'BEGIN:STANDARD', 'DTSTART:19700101T000000', 'TZOFFSETFROM:+0900', 'TZOFFSETTO:+0900', 'TZNAME:KST', 'END:STANDARD', 'END:VTIMEZONE',
+    'BEGIN:VEVENT', `UID:${ev.key}@hanneung.com`, `DTSTAMP:${stamp}`, `DTSTART;TZID=Asia/Seoul:${evStart(ev)}`, `DTEND;TZID=Asia/Seoul:${evEnd(ev)}`,
+    `SUMMARY:${esc(ev.title)}`, `DESCRIPTION:${esc(`${ev.note}\n${ev.url}`)}`, `URL:${ev.url}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', `TRIGGER:${ev.alarm ? `-PT${ev.alarm}M` : 'PT0M'}`, `DESCRIPTION:${esc(ev.title)}`, 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR', ''].join('\r\n');
+}
+export const eventIcsPath = (ev) => `/cal/${ev.key}.ics`;
+
+// [data-events] 요소에 시험 일정 알림 버튼을 그린다
+export function mountEvents(el) {
+  if (!el || el.dataset.mounted) return;
+  const evs = examEvents();
+  if (!evs.length) return;
+  el.dataset.mounted = '1';
+  const os = platformOf(navigator.userAgent, navigator.maxTouchPoints || 0);
+  el.dataset.os = os;
+  el.classList.add('card', 'remind', 'events');
+  const btn = (ev) =>
+    os === 'ios'
+      ? `<a class="btn primary sm" data-ev="${ev.key}" href="${eventIcsPath(ev)}">캘린더에 추가</a>`
+      : `<a class="btn primary sm" data-ev="${ev.key}" href="${googleEventUrl(ev)}" target="_blank" rel="noopener">구글 캘린더에 추가</a>${os === 'desktop' ? `<a class="btn sm" href="${eventIcsPath(ev)}" download="${ev.key}.ics">.ics</a>` : ''}`;
+  el.innerHTML = `<p class="label">시험 일정 알림</p>
+<h3 class="remind-h">놓치면 안 되는 날, 그날 아침에 알려 드려요</h3>
+<ul class="ev-list">${evs.map((ev) => `<li><span class="ev-when"><b>${md(ev.date)}</b> ${ev.time}</span><span class="ev-what">${ev.label}</span><span class="acts">${btn(ev)}</span></li>`).join('')}</ul>
+<p class="hint">로그인·개인정보 입력 없음. 캘린더 화면에서 "저장"을 눌러야 등록돼요.</p>`;
+}
+
+if (typeof document !== 'undefined') {
+  document.querySelectorAll('[data-remind]').forEach(mountRemind);
+  document.querySelectorAll('[data-events]').forEach(mountEvents);
+}

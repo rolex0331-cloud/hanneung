@@ -58,3 +58,25 @@ test('기기 구분과 .ics 경로', () => {
   assert.equal(platformOf('Mozilla/5.0 (Windows NT 10.0; Win64; x64)'), 'desktop');
   assert.equal(icsPath('21:00'), '/cal/2100.ics');
 });
+
+import { examEvents, googleEventUrl, icsEvent, eventIcsPath } from '../assets/remind.js';
+test('시험 일정 알림: 성적 발표·접수 시작, 지난 일정 제외, 링크·.ics 내용', () => {
+  const EX2 = [
+    { round: 80, date: '2026-10-17', result: '2026-10-30', verified: true },
+    { round: 81, date: '2026-11-28', applyOpen: '2026-11-03T10:00', result: '2026-12-11', verified: true },
+    { round: 99, date: '2026-11-01', result: '2026-11-10', verified: false },
+  ];
+  let ev = examEvents(at('2026-10-16T12:00:00'), EX2);
+  assert.deepEqual(ev.map((e) => [e.key, e.date, e.time]), [['result-80', '2026-10-30', '09:00'], ['apply-81', '2026-11-03', '10:00'], ['result-81', '2026-12-11', '09:00']]);
+  ev = examEvents(at('2026-10-31T08:00:00'), EX2);
+  assert.deepEqual(ev.map((e) => e.key), ['apply-81', 'result-81'], '지난 발표일 제외');
+  const ap = examEvents(at('2026-10-16T12:00:00'), EX2)[1];
+  const u = new URL(googleEventUrl(ap));
+  assert.equal(u.searchParams.get('dates'), '20261103T100000/20261103T103000');
+  assert.equal(u.searchParams.get('ctz'), 'Asia/Seoul');
+  assert.match(u.searchParams.get('details'), /https:\/\/hanneung\.com\/apply\//);
+  const t = icsEvent(ap, new Date('2026-10-16T00:00:00Z')).split('\r\n');
+  for (const l of ['DTSTART;TZID=Asia/Seoul:20261103T100000', 'TRIGGER:-PT10M', 'UID:apply-81@hanneung.com', 'URL:https://hanneung.com/apply/']) assert.ok(t.includes(l), l);
+  assert.ok(!t.some((l) => l.startsWith('RRULE')), '한 번만');
+  assert.equal(eventIcsPath(ap), '/cal/apply-81.ics');
+});
