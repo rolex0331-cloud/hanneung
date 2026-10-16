@@ -31,7 +31,8 @@ if (typeof window !== 'undefined') {
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const mode = installMode(navigator.userAgent, navigator.maxTouchPoints || 0, standalone);
   const st = get();
-  const hidden = mode === 'installed' || st.installed || (st.closedAt && Date.now() - st.closedAt < 14 * 864e5);
+  // 설치를 눌러도 기기 보안 기능 등으로 실제 설치가 안 될 수 있어 '설치함'은 3일만 숨긴다(아이콘으로 열면 standalone이라 계속 숨김)
+  const hidden = mode === 'installed' || (st.installedAt && Date.now() - st.installedAt < 3 * 864e5) || (st.closedAt && Date.now() - st.closedAt < 14 * 864e5);
   let deferred = null;
 
   const render = (el) => {
@@ -48,7 +49,7 @@ if (typeof window !== 'undefined') {
     el.innerHTML = `<p class="label">앱처럼 쓰기</p>
 <h3 class="remind-h">홈 화면에 한능 추가</h3>
 <p class="hint remind-sub">아이콘 한 번에 바로 오늘의 문제. 전체 화면으로 열리고, 인터넷이 끊겨도 문제를 풀 수 있어요. 설치 파일·로그인 없음.</p>
-${how ? `<p class="install-how">${how}</p>` : '<div class="remind-row"><button type="button" class="btn primary" data-act="install">홈 화면에 추가</button></div>'}
+${how ? `<p class="install-how">${how}</p>` : '<div class="remind-row"><button type="button" class="btn primary" data-act="install">홈 화면에 추가</button></div><p class="hint install-alt">설치했는데 아이콘이 안 보이면(휴대폰 보안 설정이 막는 경우): 크롬 오른쪽 위 <b>⋮</b> → <b>"홈 화면에 추가"</b> → <b>"바로가기 만들기"</b>를 고르세요.</p>'}
 <button type="button" class="install-close" data-act="close" aria-label="닫기">닫기</button>`;
     el.addEventListener('click', async (e) => {
       const act = e.target.closest('[data-act]')?.dataset.act;
@@ -60,7 +61,7 @@ ${how ? `<p class="install-how">${how}</p>` : '<div class="remind-row"><button t
         const r = await deferred.userChoice.catch(() => null);
         deferred = null;
         if (r?.outcome === 'accepted') {
-          set({ installed: true });
+          set({ installedAt: Date.now() });
           el.hidden = true;
         }
       }
@@ -74,7 +75,7 @@ ${how ? `<p class="install-how">${how}</p>` : '<div class="remind-row"><button t
     mountAll();
   });
   window.addEventListener('appinstalled', () => {
-    set({ installed: true });
+    set({ installedAt: Date.now() });
     document.querySelectorAll('[data-install]').forEach((el) => (el.hidden = true));
   });
   mountAll();
