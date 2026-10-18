@@ -80,3 +80,15 @@ test('시험 일정 알림: 성적 발표·접수 시작, 지난 일정 제외, 
   assert.ok(!t.some((l) => l.startsWith('RRULE')), '한 번만');
   assert.equal(eventIcsPath(ap), '/cal/apply-81.ics');
 });
+
+test('앱 안 브라우저 구분과 바깥 브라우저 링크', async () => {
+  const { inappKind, externalUrl } = await import('../assets/pwa.js');
+  const NA = 'Mozilla/5.0 (Linux; Android 14) Chrome/129.0 Mobile NAVER(inapp; search; 2000; 12.8.1)';
+  assert.equal(inappKind(NA), 'naver');
+  assert.equal(inappKind('Mozilla/5.0 (iPhone) KAKAOTALK 10.8.0'), 'kakao');
+  assert.equal(inappKind('Mozilla/5.0 (Linux; Android 14) Chrome/129.0 Mobile Safari/537.36'), null);
+  assert.equal(externalUrl('https://hanneung.com/vs/a-b/?x=1#/q', NA), 'intent://hanneung.com/vs/a-b/?x=1#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fhanneung.com%2Fvs%2Fa-b%2F%3Fx%3D1%23%2Fq;end');
+  assert.equal(externalUrl('https://hanneung.com/', 'Mozilla/5.0 (iPhone) KAKAOTALK 10.8.0'), 'kakaotalk://web/openExternal?url=https%3A%2F%2Fhanneung.com%2F');
+  assert.equal(externalUrl('https://hanneung.com/', 'Mozilla/5.0 (iPhone) NAVER(inapp; search)'), null, '아이폰 네이버 앱은 안내만');
+  assert.equal(externalUrl('https://hanneung.com/', 'Mozilla/5.0 (Windows NT 10.0) Chrome/129'), null);
+});

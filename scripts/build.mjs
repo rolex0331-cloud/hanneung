@@ -13,7 +13,8 @@ import { TIMES, reminderPlan, icsText, icsPath, examEvents, icsEvent, eventIcsPa
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'dist');
 const BASE = 'https://hanneung.com';
-const BUILT = process.env.BUILD_DATE || new Date().toISOString().slice(0, 10);
+// 빌드 날짜는 한국 시간 기준(시험일·발표일 판단이 KST)
+const BUILT = process.env.BUILD_DATE || new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 const BUILD_ID = process.env.BUILD_ID || Date.now().toString(36);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 // 애드센스: 게시자 ID가 있을 때만 모든 페이지 head에 확인 메타와 광고 스크립트, ads.txt를 넣는다.

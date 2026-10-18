@@ -219,6 +219,9 @@ test('단서 그래프: 오늘의 문제에 3문항, 쌍 집중으로 헷갈림 
 
   // 2) 쌍 집중: 매번 '상대'의 선지를 골라 일부러 헷갈림
   const { page, errors } = await open('/pair/#/pair/gwangjong.seongjong-g', { mobile: true });
+  // 앞선 테스트의 풀이 기록이 섞이지 않게 저장소를 비우고 다시 시작
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: 'networkidle0' });
   assert.match(await txt(page, '#quiz-count'), /1 \/ 6/);
   assert.match(await txt(page, '#quiz-title'), /광종 vs 성종\(고려\)/);
   for (let i = 0; i < 6; i++) {
@@ -312,7 +315,7 @@ test('PWA: 서비스 워커가 페이지를 제어, 오프라인에서도 /app/ 
   await page.close();
   const UAS = {
     ios: ['Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', /공유 버튼/],
-    inapp: ['Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36 NAVER(inapp; search; 2000; 12.8.1)', /다른 브라우저로 열기/],
+    inapp: ['Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36 NAVER(inapp; search; 2000; 12.8.1)', /크롬에서 열기/],
   };
   for (const [k, [ua, re]] of Object.entries(UAS)) {
     const x = await open('/', { mobile: true, before: `Object.defineProperty(navigator, 'userAgent', { get: () => ${JSON.stringify(ua)} }); localStorage.removeItem('hanneung:install');` });
@@ -339,10 +342,29 @@ test('블로그 재료(/kit/): 글마다 썸네일·제목/본문/태그, 복사
   const body = await page.$eval('.kit textarea[id$="-b"]', (t) => t.value);
   assert.ok(body.length > 200 && !body.includes('[태그]'));
   await page.click('.kit button[data-copy$="-b"]');
-  assert.match(await page.$eval('.kit button[data-copy$="-b"]', (b) => b.textContent), /복사됨|직접 복사/);
+  await page.waitForFunction(() => /복사됨|직접 복사/.test(document.querySelector('.kit button[data-copy$="-b"]').textContent), { timeout: 3000 });
   const clip = await page.evaluate(() => navigator.clipboard.readText().catch(() => null));
   if (clip !== null) assert.equal(clip.replace(/\r\n/g, '\n'), body.replace(/\r\n/g, '\n')); // 윈도 클립보드는 줄바꿈을 CRLF로 바꿈
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
   assert.deepEqual(errors, []);
   await page.close();
+});
+
+test('앱 안 브라우저: 안내 바와 크롬에서 열기(안드로이드 intent), 닫으면 숨김, 일반 브라우저는 바 없음', async () => {
+  const NAVER = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36 NAVER(inapp; search; 2000; 12.8.1)';
+  const x = await open('/summary/', { mobile: true, before: `Object.defineProperty(navigator, 'userAgent', { get: () => ${JSON.stringify(NAVER)} });` });
+  await x.page.evaluate(() => localStorage.removeItem('hanneung:install'));
+  await x.page.reload({ waitUntil: 'networkidle0' });
+  await x.page.waitForSelector('.inapp-bar');
+  const href = await x.page.$eval('.inapp-bar a', (a) => a.getAttribute('href'));
+  assert.ok(href.startsWith('intent://') && href.includes('/summary/#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=http') && href.endsWith('%2Fsummary%2F;end'), href);
+  await x.page.click('.inapp-bar button');
+  assert.equal(await x.page.$('.inapp-bar'), null, '닫기');
+  await x.page.reload({ waitUntil: 'networkidle0' });
+  assert.equal(await x.page.$('.inapp-bar'), null, '하루 숨김');
+  assert.deepEqual(x.errors, []);
+  await x.page.close();
+  const y = await open('/summary/', { mobile: true });
+  assert.equal(await y.page.$('.inapp-bar'), null, '일반 브라우저');
+  await y.page.close();
 });

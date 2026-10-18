@@ -17,6 +17,22 @@ const set = (v) => {
   }
 };
 
+// 앱 안 브라우저(네이버·카카오 등): 캘린더(구글 로그인)·설치가 막힌다 → 바깥 브라우저로 여는 링크
+export function inappKind(ua = '') {
+  if (/KAKAOTALK/i.test(ua)) return 'kakao';
+  if (/NAVER\(inapp/i.test(ua)) return 'naver';
+  if (/DaumApps|Instagram|FBAN|FBAV|Line\/|everytimeApp|BAND\//i.test(ua)) return 'other';
+  return null;
+}
+export function externalUrl(href, ua = '') {
+  const kind = inappKind(ua);
+  if (!kind) return null;
+  if (kind === 'kakao') return `kakaotalk://web/openExternal?url=${encodeURIComponent(href)}`;
+  if (!/Android/i.test(ua)) return null; // 아이폰 네이버 앱 등은 강제로 사파리를 열 방법이 없어 안내만
+  const u = new URL(href);
+  return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(href)};end`;
+}
+
 export function installMode(ua = '', touchPoints = 0, standalone = false) {
   if (standalone) return 'installed';
   if (/NAVER\(inapp|KAKAOTALK|Instagram|FBAN|FBAV|Line\//i.test(ua)) return 'inapp';
@@ -40,7 +56,9 @@ if (typeof window !== 'undefined') {
     const how = {
       ios: '사파리 아래쪽 <b>공유 버튼(□↑)</b> → <b>"홈 화면에 추가"</b>를 누르세요.',
       'ios-other': '아이폰은 <b>사파리</b>에서 열어야 홈 화면에 추가할 수 있어요. 사파리에서 hanneung.com을 연 뒤 공유 → "홈 화면에 추가".',
-      inapp: '지금은 앱 안 브라우저라 설치가 안 돼요. 오른쪽 위·아래 <b>메뉴(⋮ 또는 ⋯)</b> → <b>"다른 브라우저로 열기"</b>를 누른 뒤 크롬에서 설치하세요.',
+      inapp: externalUrl(location.href, navigator.userAgent)
+        ? `지금은 앱 안 화면이라 설치가 안 돼요. <a class="btn sm primary" href="${externalUrl(location.href, navigator.userAgent)}">크롬에서 열기</a> 를 누른 뒤 설치하세요.`
+        : '지금은 앱 안 화면이라 설치가 안 돼요. 오른쪽 위·아래 <b>메뉴(⋮ 또는 ⋯)</b> → <b>"다른 브라우저로 열기"</b>를 누른 뒤 설치하세요.',
     }[mode];
     if (mode === 'prompt' && !deferred) return; // 설치 가능할 때만
     el.dataset.mounted = '1';
@@ -79,4 +97,21 @@ ${how ? `<p class="install-how">${how}</p>` : '<div class="remind-row"><button t
     document.querySelectorAll('[data-install]').forEach((el) => (el.hidden = true));
   });
   mountAll();
+
+  // 앱 안 브라우저 안내 바 (닫으면 하루 동안 숨김)
+  const kind = inappKind(navigator.userAgent);
+  if (kind && !(st.inappClosedAt && Date.now() - st.inappClosedAt < 864e5)) {
+    const ext = externalUrl(location.href, navigator.userAgent);
+    const bar = document.createElement('div');
+    bar.className = 'inapp-bar';
+    bar.setAttribute('role', 'note');
+    bar.innerHTML = ext
+      ? `<span>앱 안 화면에서는 캘린더 알림·홈 화면 추가가 막혀요.</span><a class="btn sm primary" href="${ext}">${kind === 'kakao' ? '기본 브라우저로 열기' : '크롬에서 열기'}</a><button type="button" aria-label="닫기">닫기</button>`
+      : `<span>앱 안 화면에서는 캘린더 알림·홈 화면 추가가 막혀요. 오른쪽 아래 <b>⋯</b> → <b>"다른 브라우저로 열기"</b>(사파리)를 눌러 주세요.</span><button type="button" aria-label="닫기">닫기</button>`;
+    bar.querySelector('button').addEventListener('click', () => {
+      set({ inappClosedAt: Date.now() });
+      bar.remove();
+    });
+    document.body.prepend(bar);
+  }
 }

@@ -253,3 +253,8 @@ details summary { cursor: pointer; font-weight: 700; color: var(--ink-2); margin
 .kit-f { margin: 0 0 14px; }
 .kit-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .kit textarea { width: 100%; box-sizing: border-box; font: 14px/1.6 var(--font); color: var(--ink); background: var(--paper); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px; resize: vertical; }
+/* 앱 안 브라우저 안내 바 */
+.inapp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 16px; background: var(--ink); color: var(--paper); font-size: 14px; line-height: 1.5; }
+.inapp-bar span { flex: 1 1 200px; }
+.inapp-bar .btn.primary { background: var(--seal); border-color: var(--seal); color: #fff; }
+.inapp-bar button { border: 0; background: none; color: inherit; opacity: 0.75; font: 600 13px/1 var(--font); cursor: pointer; padding: 6px; }
