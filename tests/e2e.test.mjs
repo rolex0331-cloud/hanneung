@@ -368,3 +368,32 @@ test('앱 안 브라우저: 안내 바와 크롬에서 열기(안드로이드 in
   assert.equal(await y.page.$('.inapp-bar'), null, '일반 브라우저');
   await y.page.close();
 });
+
+test('공유 버튼: 모든 페이지 상단, 공유 창에 대표 주소, 공유 창이 없으면 링크 복사, 좁은 휴대폰에서도 넘치지 않음', async () => {
+  const mock = `window.__shared = null; navigator.share = (d) => { window.__shared = d; return Promise.resolve(); };`;
+  for (const [path, want] of [['/', 'https://hanneung.com/'], ['/app/#/daily', 'https://hanneung.com/'], ['/vs/jagang-sinmin/', 'https://hanneung.com/vs/jagang-sinmin/'], ['/pair/#/pair/gwangjong.seongjong-g', 'https://hanneung.com/pair/#/pair/gwangjong.seongjong-g']]) {
+    const { page, errors } = await open(path, { mobile: true, before: mock });
+    await page.click('header [data-share]');
+    await page.waitForFunction(() => window.__shared);
+    assert.equal((await page.evaluate(() => window.__shared)).url, want, path);
+    assert.deepEqual(errors, [], path);
+    await page.close();
+  }
+  const ctx = browser.defaultBrowserContext();
+  await ctx.overridePermissions(BASE, ['clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
+  const c = await open('/summary/', { before: 'delete Navigator.prototype.share; navigator.share = undefined;' });
+  await c.page.click('header [data-share]');
+  await c.page.waitForSelector('.share-toast');
+  const clip = await c.page.evaluate(() => navigator.clipboard.readText().catch(() => null));
+  if (clip !== null) assert.equal(clip, 'https://hanneung.com/summary/');
+  await c.page.close();
+  const n = await browser.newPage();
+  await n.setViewport({ width: 360, height: 740, isMobile: true, hasTouch: true });
+  for (const path of ['/', '/vs/jagang-sinmin/']) {
+    await n.goto(BASE + path, { waitUntil: 'networkidle0' });
+    assert.equal(await n.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, `360px ${path}`);
+    const box = await n.$eval('header [data-share]', (b) => { const r = b.getBoundingClientRect(); return r.right <= window.innerWidth && r.width > 0; });
+    assert.ok(box, `360px ${path} 공유 버튼 보임`);
+  }
+  await n.close();
+});

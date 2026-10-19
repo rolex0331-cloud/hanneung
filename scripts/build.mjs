@@ -29,6 +29,7 @@ const LOGO = readFileSync(join(root, 'assets', 'logo-inline.svg'), 'utf8').trim(
 const HEADER = `<header class="site-header"><div class="wrap header-in">
   <a class="logo" href="/" aria-label="한능 홈">${LOGO}</a>
   <nav class="nav" aria-label="주요 메뉴"><a href="/#/daily">오늘의 문제</a><a href="/#/mock">모의고사</a><a href="/summary/">핵심 정리</a><a href="/schedule/">시험 일정</a></nav>
+  <button type="button" class="share-btn" data-share aria-label="이 페이지 공유"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg><span>공유</span></button>
 </div></header>`;
 const FOOTER = `<footer class="site-footer"><div class="wrap">
   <p>한능의 모든 문항은 직접 제작했으며 국사편찬위원회 기출문제를 옮기지 않았습니다. 공식 기출문제는 <a href="${SITE.officialExam}" target="_blank" rel="noopener">한국사능력검정시험 홈페이지</a>에서 볼 수 있어요.</p>

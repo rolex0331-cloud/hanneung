@@ -33,6 +33,14 @@ export function externalUrl(href, ua = '') {
   return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(href)};end`;
 }
 
+// 공유할 주소: 앱 화면(/app/·/today/)은 첫 화면, 짝 퀴즈는 그 짝 그대로, 나머지는 그 페이지의 대표 주소(canonical)
+export function shareUrl(loc, canonical) {
+  const origin = 'https://hanneung.com';
+  if (loc.pathname.startsWith('/pair/') && loc.hash.startsWith('#/pair/')) return `${origin}/pair/${loc.hash}`;
+  if (/^\/(app|today)\//.test(loc.pathname)) return `${origin}/`;
+  return canonical || `${origin}${loc.pathname}`;
+}
+
 export function installMode(ua = '', touchPoints = 0, standalone = false) {
   if (standalone) return 'installed';
   if (/NAVER\(inapp|KAKAOTALK|Instagram|FBAN|FBAV|Line\//i.test(ua)) return 'inapp';
@@ -97,6 +105,35 @@ ${how ? `<p class="install-how">${how}</p>` : '<div class="remind-row"><button t
     document.querySelectorAll('[data-install]').forEach((el) => (el.hidden = true));
   });
   mountAll();
+
+  // 공유 버튼: 주소창이 없는 앱 화면에서도 링크를 보낼 수 있게
+  const toast = (msg) => {
+    const t = document.createElement('div');
+    t.className = 'share-toast';
+    t.setAttribute('role', 'status');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2200);
+  };
+  document.addEventListener('click', async (e) => {
+    if (!e.target.closest('[data-share]')) return;
+    const url = shareUrl(location, document.querySelector('link[rel="canonical"]')?.href);
+    const title = document.title.replace(/\s*\|\s*한능$/, '');
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text: `${title} — 한능`, url });
+        return;
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('링크를 복사했어요. 카톡이나 문자에 붙여 넣으세요.');
+    } catch {
+      prompt('이 주소를 복사하세요', url);
+    }
+  });
 
   // 앱 안 브라우저 안내 바 (닫으면 하루 동안 숨김)
   const kind = inappKind(navigator.userAgent);

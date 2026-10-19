@@ -92,3 +92,13 @@ test('앱 안 브라우저 구분과 바깥 브라우저 링크', async () => {
   assert.equal(externalUrl('https://hanneung.com/', 'Mozilla/5.0 (iPhone) NAVER(inapp; search)'), null, '아이폰 네이버 앱은 안내만');
   assert.equal(externalUrl('https://hanneung.com/', 'Mozilla/5.0 (Windows NT 10.0) Chrome/129'), null);
 });
+
+test('공유 주소: 앱 화면은 첫 화면, 짝 퀴즈는 짝 그대로, 나머지는 대표 주소', async () => {
+  const { shareUrl } = await import('../assets/pwa.js');
+  const L = (pathname, hash = '') => ({ pathname, hash });
+  assert.equal(shareUrl(L('/app/', '#/daily'), 'https://hanneung.com/'), 'https://hanneung.com/');
+  assert.equal(shareUrl(L('/today/'), 'https://hanneung.com/'), 'https://hanneung.com/');
+  assert.equal(shareUrl(L('/pair/', '#/pair/gwangjong.seongjong-g'), 'https://hanneung.com/'), 'https://hanneung.com/pair/#/pair/gwangjong.seongjong-g');
+  assert.equal(shareUrl(L('/vs/jagang-sinmin/'), 'https://hanneung.com/vs/jagang-sinmin/'), 'https://hanneung.com/vs/jagang-sinmin/');
+  assert.equal(shareUrl(L('/kit/'), null), 'https://hanneung.com/kit/');
+});
