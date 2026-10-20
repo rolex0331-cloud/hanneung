@@ -6,8 +6,8 @@ import { QUESTIONS, ERAS } from '../assets/questions.js';
 import { EXAMS, SITE, ADS } from '../assets/config.js';
 import { presentQuestion, rng, hashSeed } from '../assets/engine.js';
 import { SUMMARY } from './summary-data.mjs';
-import { PAIRS } from '../assets/graph.js';
-import { ENT, SET, vsPath, josa } from '../assets/graph-engine.js';
+import { PAIRS, ENTITIES } from '../assets/graph.js';
+import { ENT, SET, vsPath, josa, hasBatchim } from '../assets/graph-engine.js';
 import { TIMES, reminderPlan, icsText, icsPath, examEvents, icsEvent, eventIcsPath } from '../assets/remind.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -192,6 +192,8 @@ for (const er of ERAS) {
 <p class="lead">${ERA_INTRO[er.id]}</p>
 <p class="cta"><a class="btn primary lg" href="/#/era/${er.id}">${er.name} ${qs.length}문항 풀어 보기</a><a class="btn lg" href="/#/daily">오늘의 10문제</a></p>
 ${eraNav(er.id)}
+${ENTITIES.some((x) => x.era === er.id) ? `<h2>${er.name} 핵심 개념</h2>
+<p class="chips">${ENTITIES.filter((x) => x.era === er.id).map((x) => `<a class="chip" href="/k/${x.id}/">${esc(x.name)}</a>`).join('')}</p>` : ''}
 <h2>${er.name} 연습 문제 ${qs.length}개</h2>
 <ol class="qlist">${items}</ol>
 <p class="src">이 페이지의 문항은 한능이 직접 만든 연습 문제입니다. 실제 기출문제는 국사편찬위원회 홈페이지에서 확인하세요.</p>`;
@@ -323,6 +325,48 @@ ${secs}
   );
 }
 
+// 개념 페이지 (/k/<id>/) — 단서 그래프의 대상마다 하나. 개념 이름 검색(대동법·광종·신간회 등)용
+const kPath = (id) => `/k/${id}/`;
+for (const e of ENTITIES) {
+  const set = SET.get(e.set);
+  const bare = e.name.replace(/\([^)]*\)/g, '').trim();
+  const isKing = set.noun === '왕';
+  const eraName = ERAS.find((x) => x.id === e.era).name;
+  const myPairs = PAIRS.filter(([x, y]) => x === e.id || y === e.id).map(([x, y]) => ENT.get(x === e.id ? y : x));
+  const peers = ENTITIES.filter((x) => x.set === e.set && x.id !== e.id);
+  const rivalBlock = myPairs
+    .map(
+      (o) => `<div class="card" style="padding:12px 16px;margin:0 0 10px"><p><b>${esc(e.name)}</b> vs <b><a href="${kPath(o.id)}">${esc(o.name)}</a></b></p>
+<p class="hint">${esc(o.name)} 쪽 단서: ${o.clues.slice(0, 3).map(esc).join(', ')} — 이 단서가 보이면 ${esc(o.name)}입니다.</p>
+<p class="cta" style="margin:8px 0 0"><a class="btn sm primary" href="/pair/#/pair/${e.id}.${o.id}">둘만 6문제</a><a class="btn sm" href="${vsPath(e.id, o.id)}">비교표</a></p></div>`
+    )
+    .join('');
+  const body = `<p class="hint"><a href="/era/${e.era}/">${esc(eraName)}</a> · ${esc(set.name)}</p>
+<h1>${esc(e.name)}${isKing ? ' 업적' : ''}</h1>
+<p class="lead">한능검에서 ${esc(e.name)}${hasBatchim(bare) ? '은' : '는'} 지문 속 <b>단서</b>로 먼저 알아보고, 선지에서 <b>${isKing ? '업적' : '내용'}</b>을 고르는 방식으로 나옵니다. 비슷한 ${set.noun}의 내용이 오답 선지로 섞여 나오니 아래 비교까지 확인하세요.</p>
+<h2>시험에 나오는 단서</h2>
+<p class="chips">${e.clues.map((c) => `<span class="chip">${esc(c)}</span>`).join('')}</p>
+<h2>${isKing ? '핵심 업적' : '핵심 내용'}</h2>
+<ul>${e.facts.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+<h2>이런 자료가 나오면 ${esc(e.name)}</h2>
+<div class="card" style="padding:14px 18px"><p>${esc(e.passage)}</p></div>
+${myPairs.length ? `<h2>자주 헷갈리는 ${set.noun}</h2>\n${rivalBlock}` : ''}
+<p class="cta"><a class="btn primary lg" href="/#/daily">오늘의 10문제</a><a class="btn lg" href="/era/${e.era}/">${esc(eraName)} 문제와 해설</a></p>
+<h2>같은 묶음: ${esc(set.name)}</h2>
+<p class="hint">${peers.map((p) => `<a href="${kPath(p.id)}">${esc(p.name)}</a>`).join(' · ')}</p>
+<p class="src">한능이 직접 정리한 내용입니다. 오류는 <a href="${SITE.contact}" target="_blank" rel="noopener">제보 게시판</a>으로 알려 주세요.</p>`;
+  write(
+    `k/${e.id}/index.html`,
+    page({
+      title: isKing ? `${bare} 업적 — 한능검 단서·헷갈리는 왕 비교 | 한능` : `${bare} — 한능검 핵심 내용·단서·헷갈리는 ${set.noun} 비교 | 한능`,
+      desc: `${bare}${isKing ? ' 업적' : ''} 한 장 정리. ${e.facts.slice(0, 2).join(' ')} 시험 단서: ${e.clues.slice(0, 3).join(', ')}.${myPairs.length ? ` ${josa(myPairs.map((o) => o.name.replace(/\([^)]*\)/g, '').trim()).join('·'), '과/와')} 헷갈리지 않게 비교.` : ''}`,
+      path: kPath(e.id),
+      body,
+      remind: true,
+    })
+  );
+}
+
 // 헷갈리는 짝 비교 페이지 (/vs/a-b/) — 단서 그래프에서 생성
 const bareName = (n) => n.replace(/\([^)]*\)/g, '').trim();
 for (const [ai, bi] of PAIRS) {
@@ -335,7 +379,7 @@ for (const [ai, bi] of PAIRS) {
   const col = (e) => `<td><ul>${e.facts.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></td>`;
   const body = `<h1>${esc(a.name)} ${esc(b.name)} 차이</h1>
 <p class="lead">한능검에서 자주 섞여 나오는 ${set.name} 짝입니다. 지문에 아래 <b>단서</b>가 보이면 누구인지 바로 가려낼 수 있어요. 선지에는 상대의 업적이 오답으로 섞여 나옵니다.</p>
-<div class="card cmp"><table><thead><tr><th></th><th>${esc(a.name)}</th><th>${esc(b.name)}</th></tr></thead><tbody>
+<div class="card cmp"><table><thead><tr><th></th><th><a href="${kPath(ai)}">${esc(a.name)}</a></th><th><a href="${kPath(bi)}">${esc(b.name)}</a></th></tr></thead><tbody>
 <tr><th scope="row">단서</th><td>${a.clues.map(esc).join(', ')}</td><td>${b.clues.map(esc).join(', ')}</td></tr>
 <tr><th scope="row">${set.noun === '왕' ? '업적' : '내용'}</th>${col(a)}${col(b)}</tr>
 </tbody></table></div>
@@ -424,7 +468,7 @@ write(
   page({ title: '페이지를 찾을 수 없어요 | 한능', desc: '요청한 페이지가 없습니다.', path: '/404', noindex: true, body: `<h1>페이지를 찾을 수 없어요</h1><p class="lead">주소가 바뀌었거나 없는 페이지입니다.</p><p class="cta"><a class="btn primary lg" href="/#/daily">오늘의 10문제 풀기</a><a class="btn lg" href="/">처음으로</a></p>` })
 );
 
-const urls = ['/', '/summary/', '/schedule/', '/result/', '/apply/', '/about/', ...ERAS.map((e) => `/era/${e.id}/`), ...PAIRS.map(([a, b]) => vsPath(a, b))];
+const urls = ['/', '/summary/', '/schedule/', '/result/', '/apply/', '/about/', ...ERAS.map((e) => `/era/${e.id}/`), ...PAIRS.map(([a, b]) => vsPath(a, b)), ...ENTITIES.map((e) => `/k/${e.id}/`)];
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${BASE}${u}</loc><lastmod>${BUILT}</lastmod></url>`).join('\n')}\n</urlset>\n`);
 if (PUB) write('ads.txt', `google.com, ${PUB}, DIRECT, f08c47fec0942fa0
 `);

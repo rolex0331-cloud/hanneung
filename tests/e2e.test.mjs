@@ -397,3 +397,19 @@ test('공유 버튼: 모든 페이지 상단, 공유 창에 대표 주소, 공�
   }
   await n.close();
 });
+
+test('개념 페이지(/k/): 단서·내용·자료·헷갈리는 상대(6문제·비교표), 시대 페이지·비교 페이지에서 연결', async () => {
+  const { page, errors, external } = await open('/k/daedong/', { mobile: true });
+  assert.match(await txt(page, 'h1'), /대동법/);
+  assert.match(await txt(page, 'main'), /선혜청/);
+  assert.ok(await page.$('a[href^="/pair/#/pair/daedong."]'), '둘만 6문제');
+  assert.ok(await page.$('a[href^="/vs/"]'), '비교표');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+  assert.deepEqual(errors, []);
+  assert.deepEqual(external, []);
+  await page.goto(BASE + '/era/goryeo/', { waitUntil: 'networkidle0' });
+  assert.ok(await page.$('a[href="/k/gwangjong/"]'), '시대 페이지 → 개념');
+  await page.goto(BASE + '/vs/gwangjong-seongjong-g/', { waitUntil: 'networkidle0' });
+  assert.ok(await page.$('.cmp a[href="/k/gwangjong/"]'), '비교 페이지 → 개념');
+  await page.close();
+});
