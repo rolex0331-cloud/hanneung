@@ -19,14 +19,25 @@ const kst = (d) => new Date(d.getTime() + 9 * 3600e3).toISOString().slice(0, 10)
 const end = process.argv[3] || kst(new Date());
 const start = process.argv[2] || kst(new Date(Date.now() - 6 * 864e5));
 
-const query = `{ viewer { accounts(filter:{accountTag:"${ACCOUNT}"}) {
-  rows: rumPageloadEventsAdaptiveGroups(limit:5000, filter:{date_geq:"${start}", date_leq:"${end}", requestHost_like:"%hanneung.com"}) {
-    count sum { visits } dimensions { date requestPath refererHost userAgentBrowser deviceType countryName }
+// 기간이 길면 Cloudflare가 표본 추정(10배 등)으로 돌려준다 → 하루씩 나눠 조회하고, 표본 배율이 1보다 크면 경고
+const days = [];
+for (let d = new Date(`${start}T00:00:00Z`); d <= new Date(`${end}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)) days.push(d.toISOString().slice(0, 10));
+const all = [];
+let maxSample = 1;
+for (const day of days) {
+  const query = `{ viewer { accounts(filter:{accountTag:"${ACCOUNT}"}) {
+  rows: rumPageloadEventsAdaptiveGroups(limit:5000, filter:{date:"${day}", requestHost_like:"%hanneung.com"}) {
+    count sum { visits } avg { sampleInterval } dimensions { date requestPath refererHost userAgentBrowser deviceType countryName }
   } } } }`;
-const res = await fetch('https://api.cloudflare.com/client/v4/graphql', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) });
-const j = await res.json();
-if (j.errors) throw new Error(JSON.stringify(j.errors));
-const all = j.data.viewer.accounts[0].rows;
+  const res = await fetch('https://api.cloudflare.com/client/v4/graphql', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) });
+  const j = await res.json();
+  if (j.errors) throw new Error(`${day}: ${JSON.stringify(j.errors)}`);
+  for (const r of j.data.viewer.accounts[0].rows) {
+    maxSample = Math.max(maxSample, r.avg?.sampleInterval || 1);
+    all.push(r);
+  }
+  await new Promise((ok) => setTimeout(ok, 800)); // 요청 한도 여유
+}
 const real = all.filter((r) => !/headless/i.test(r.dimensions.userAgentBrowser));
 const kr = real.filter((r) => r.dimensions.countryName === 'KR');
 
@@ -47,7 +58,7 @@ const table = (title, rows) => {
   for (const [k, v] of rows) console.log(`${String(v.pv).padStart(5)} pv  ${String(v.visits).padStart(4)} 방문  ${k}`);
 };
 
-console.log(`# hanneung.com 지표 ${start} ~ ${end} (KST)`);
+console.log(`# hanneung.com 지표 ${start} ~ ${end} (KST)${maxSample > 1 ? ` ⚠ 표본 추정 포함(최대 ${maxSample}배) — 작은 숫자는 신뢰 낮음` : ' · 표본 없음(실측)'}`);
 console.log(`전체 페이지뷰 ${sum(all)} · 헤드리스 제외 ${sum(real)} · 그중 한국 ${sum(kr)}`);
 console.log(`외부 유입 방문(visits, 한국) ${sum(kr, (r) => r.sum.visits)}`);
 console.log(`★ 알림 재방문(/today/ 페이지뷰, 한국) ${sum(kr.filter((r) => r.dimensions.requestPath.startsWith('/today')))}`);
