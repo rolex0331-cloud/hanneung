@@ -6,6 +6,7 @@ import { QUESTIONS, ERAS } from '../assets/questions.js';
 import { EXAMS, SITE, ADS } from '../assets/config.js';
 import { presentQuestion, rng, hashSeed } from '../assets/engine.js';
 import { SUMMARY } from './summary-data.mjs';
+import { ERA_OVERVIEW, GUIDES } from './content.mjs';
 import { PAIRS, ENTITIES } from '../assets/graph.js';
 import { ENT, SET, vsPath, josa, hasBatchim } from '../assets/graph-engine.js';
 import { TIMES, reminderPlan, icsText, icsPath, examEvents, icsEvent, eventIcsPath } from '../assets/remind.js';
@@ -33,7 +34,7 @@ const HEADER = `<header class="site-header"><div class="wrap header-in">
 </div></header>`;
 const FOOTER = `<footer class="site-footer"><div class="wrap">
   <p>한능의 모든 문항은 직접 제작했으며 국사편찬위원회 기출문제를 옮기지 않았습니다. 공식 기출문제는 <a href="${SITE.officialExam}" target="_blank" rel="noopener">한국사능력검정시험 홈페이지</a>에서 볼 수 있어요.</p>
-  <p class="foot-links"><a href="/summary/">핵심 정리</a><a href="/era/pre/">시대별 문제</a><a href="/schedule/">시험 일정·개편</a><a href="/about/">소개·개인정보</a><a href="${SITE.contact}" target="_blank" rel="noopener">오류 제보</a></p>
+  <p class="foot-links"><a href="/guide/">공부 가이드</a><a href="/summary/">핵심 정리</a><a href="/era/pre/">시대별 문제</a><a href="/schedule/">시험 일정·개편</a><a href="/about/">소개·개인정보</a><a href="${SITE.contact}" target="_blank" rel="noopener">오류 제보</a></p>
 </div></footer>`;
 
 // 시대 소개 (자체 작성)
@@ -190,6 +191,8 @@ for (const er of ERAS) {
     .join('');
   const body = `<h1>${er.name} 한능검 문제와 해설</h1>
 <p class="lead">${ERA_INTRO[er.id]}</p>
+<h2>${er.name} 개관</h2>
+${ERA_OVERVIEW[er.id] || ''}
 <p class="cta"><a class="btn primary lg" href="/#/era/${er.id}">${er.name} ${qs.length}문항 풀어 보기</a><a class="btn lg" href="/#/daily">오늘의 10문제</a></p>
 ${eraNav(er.id)}
 ${ENTITIES.some((x) => x.era === er.id) ? `<h2>${er.name} 핵심 개념</h2>
@@ -363,6 +366,7 @@ ${myPairs.length ? `<h2>자주 헷갈리는 ${set.noun}</h2>\n${rivalBlock}` : '
       path: kPath(e.id),
       body,
       remind: true,
+      noindex: true, // 2026-10-25 애드센스 '가치 낮은 콘텐츠' 대응: 자동 생성 페이지는 색인 제외(링크는 유지)
     })
   );
 }
@@ -435,6 +439,22 @@ ${cards}
   );
 }
 
+// 공부 가이드 (/guide/*) — 직접 쓴 설명형 글
+for (const g of GUIDES) {
+  const others = GUIDES.filter((x) => x.slug !== g.slug).map((x) => `<li><a href="/guide/${x.slug}/">${esc(x.title)}</a></li>`).join('');
+  write(`guide/${g.slug}/index.html`, page({ title: `${g.title} | 한능`, desc: g.desc, path: `/guide/${g.slug}/`, remind: true,
+    body: `<p class="hint"><a href="/guide/">공부 가이드</a></p>
+<h1>${esc(g.title)}</h1>
+${g.body}
+<h2>다른 가이드</h2>
+<ul>${others}</ul>
+<p class="cta"><a class="btn primary lg" href="/#/daily">오늘의 10문제</a><a class="btn lg" href="/summary/">시대별 핵심 정리</a></p>` }));
+}
+write('guide/index.html', page({ title: '한능검 공부 가이드 — 공부 순서·사료 단서 찾는 법·9급 한국사 대체 | 한능', desc: '한국사능력검정시험 심화 3급을 준비하는 사람을 위한 공부 가이드: 공부 순서와 계획, 사료 문제 단서 찾는 법, 2027 9급 공무원 한국사 대체 정리.', path: '/guide/',
+  body: `<h1>한능검 공부 가이드</h1>
+<p class="lead">한능이 직접 정리한 공부 방법 글입니다. 처음이라면 공부 순서부터 읽어 보세요.</p>
+${GUIDES.map((g) => `<div class="card" style="padding:16px 18px;margin:0 0 12px"><h2 style="margin:0 0 6px"><a href="/guide/${g.slug}/">${esc(g.title)}</a></h2><p class="hint" style="margin:0">${esc(g.desc)}</p></div>`).join('')}` }));
+
 // 소개·개인정보
 write(
   'about/index.html',
@@ -468,11 +488,11 @@ write(
   page({ title: '페이지를 찾을 수 없어요 | 한능', desc: '요청한 페이지가 없습니다.', path: '/404', noindex: true, body: `<h1>페이지를 찾을 수 없어요</h1><p class="lead">주소가 바뀌었거나 없는 페이지입니다.</p><p class="cta"><a class="btn primary lg" href="/#/daily">오늘의 10문제 풀기</a><a class="btn lg" href="/">처음으로</a></p>` })
 );
 
-const urls = ['/', '/summary/', '/schedule/', '/result/', '/apply/', '/about/', ...ERAS.map((e) => `/era/${e.id}/`), ...PAIRS.map(([a, b]) => vsPath(a, b)), ...ENTITIES.map((e) => `/k/${e.id}/`)];
+const urls = ['/', '/guide/', ...GUIDES.map((g) => `/guide/${g.slug}/`), '/summary/', '/schedule/', '/result/', '/apply/', '/about/', ...ERAS.map((e) => `/era/${e.id}/`), ...PAIRS.map(([a, b]) => vsPath(a, b))];
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${BASE}${u}</loc><lastmod>${BUILT}</lastmod></url>`).join('\n')}\n</urlset>\n`);
 if (PUB) write('ads.txt', `google.com, ${PUB}, DIRECT, f08c47fec0942fa0
 `);
-write('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${BASE}/sitemap.xml\n`);
+write('robots.txt', `User-agent: *\nAllow: /\nDisallow: /kit/\nSitemap: ${BASE}/sitemap.xml\n`);
 write(
   '_headers',
   `/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n/assets/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n/assets/*.js\n  Cache-Control: no-cache\n/assets/*.css\n  Cache-Control: no-cache\n/cal/*\n  Content-Type: text/calendar; charset=utf-8\n  Cache-Control: public, max-age=3600\n/sw.js\n  Cache-Control: no-cache\n/kit/*\n  X-Robots-Tag: noindex\n  Cache-Control: no-cache\n/manifest.webmanifest\n  Content-Type: application/manifest+json\n  Cache-Control: public, max-age=3600\n`
