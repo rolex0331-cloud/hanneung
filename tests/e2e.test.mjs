@@ -26,8 +26,14 @@ after(async () => {
   server?.close();
 });
 
+// 테스트마다 새 브라우저 프로필(저장소·서비스 워커 분리) — 앞 테스트 기록이 섞이거나 쌓여 느려지지 않게
 async function open(path, { mobile = false, before: pre } = {}) {
-  const page = await browser.newPage();
+  const ctx = await browser.createBrowserContext();
+  await ctx.overridePermissions(BASE, ['clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']).catch(() => {});
+  const page = await ctx.newPage();
+  page.on('close', () => ctx.close().catch(() => {}));
+  page.setDefaultTimeout(20000);
+  page.setDefaultNavigationTimeout(45000);
   await page.setViewport(mobile ? { width: 390, height: 844, isMobile: true, hasTouch: true } : { width: 1280, height: 900 });
   const errors = [];
   const external = [];
@@ -326,8 +332,6 @@ test('PWA: 서비스 워커가 페이지를 제어, 오프라인에서도 /app/ 
 });
 
 test('블로그 재료(/kit/): 글마다 썸네일·제목/본문/태그, 복사 버튼이 실제로 복사, 검색 제외', async () => {
-  const ctx = browser.defaultBrowserContext();
-  await ctx.overridePermissions(BASE, ['clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
   const { page, errors } = await open('/kit/', { mobile: true });
   assert.equal(await page.$eval('meta[name="robots"]', (m) => m.content), 'noindex');
   const n = await page.$$eval('.kit', (s) => s.length);
@@ -379,8 +383,6 @@ test('공유 버튼: 모든 페이지 상단, 공유 창에 대표 주소, 공�
     assert.deepEqual(errors, [], path);
     await page.close();
   }
-  const ctx = browser.defaultBrowserContext();
-  await ctx.overridePermissions(BASE, ['clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
   const c = await open('/summary/', { before: 'delete Navigator.prototype.share; navigator.share = undefined;' });
   await c.page.click('header [data-share]');
   await c.page.waitForSelector('.share-toast');
